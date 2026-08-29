@@ -17,6 +17,13 @@ export interface TypeRef { builtinType: BuiltinType | null; customTypeId: string
 export interface TypedField { fieldKey: string; label: string; type: TypeRef; required: boolean }
 export interface TypeDefinition { id: string; typeKey: string; name: string; description: string | null; kind: TypeKind; itemType: TypeRef | null; fields: TypedField[]; values: { value: string; label: string }[]; updatedAt: string; version: number }
 export interface DecisionService { id: string; serviceKey: string; name: string; description: string | null; status: 'ACTIVE' | 'ARCHIVED'; inputs: TypedField[]; outputs: TypedField[]; updatedAt: string; version: number }
+export type GraphNodeKind = 'INPUT' | 'DECISION' | 'OUTPUT';
+export type GraphPortDirection = 'INPUT' | 'OUTPUT';
+export interface GraphPort { id: string; nodeId: string; direction: GraphPortDirection; portKey: string; label: string; type: TypeRef; required: boolean; position: number }
+export interface GraphNode { id: string; nodeKey: string; name: string; kind: GraphNodeKind; serviceFieldKey: string | null; positionX: number; positionY: number; ports: GraphPort[] }
+export interface GraphEdge { id: string; sourcePortId: string; targetPortId: string }
+export interface GraphIssue { severity: 'ERROR'; code: string; message: string; nodeId: string | null; portId: string | null }
+export interface DecisionGraph { id: string; decisionServiceId: string; serviceKey: string; serviceName: string; validationStatus: 'VALID' | 'INVALID'; issues: GraphIssue[]; nodes: GraphNode[]; edges: GraphEdge[]; updatedAt: string; version: number }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -60,6 +67,10 @@ export const api = {
   createDecisionService: (projectId: string, body: unknown) => request<DecisionService>(`/api/v1/projects/${projectId}/decision-services`, { method: 'POST', body: JSON.stringify(body) }),
   updateDecisionService: (projectId: string, serviceId: string, body: unknown) => request<DecisionService>(`/api/v1/projects/${projectId}/decision-services/${serviceId}`, { method: 'PUT', body: JSON.stringify(body) }),
   changeDecisionServiceStatus: (projectId: string, serviceId: string, status: DecisionService['status'], version: number) => request<DecisionService>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/status`, { method: 'PATCH', body: JSON.stringify({ status, version }) }),
+  decisionGraph: (projectId: string, serviceId: string) => request<DecisionGraph | null>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph`).then((value) => value ?? null),
+  initializeDecisionGraph: (projectId: string, serviceId: string) => request<DecisionGraph>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph`, { method: 'POST' }),
+  updateDecisionGraph: (projectId: string, serviceId: string, body: { version: number; nodes: GraphNode[]; edges: GraphEdge[] }) => request<DecisionGraph>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph`, { method: 'PUT', body: JSON.stringify(body) }),
+  synchronizeDecisionGraph: (projectId: string, serviceId: string, version: number) => request<DecisionGraph>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/contract-sync`, { method: 'POST', body: JSON.stringify({ version }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),

@@ -4,6 +4,7 @@ import com.rulecraft.decisionops.audit.AuditService;
 import com.rulecraft.decisionops.catalog.domain.*;
 import com.rulecraft.decisionops.catalog.persistence.*;
 import com.rulecraft.decisionops.identity.security.RuleCraftPrincipal;
+import com.rulecraft.decisionops.graph.persistence.GraphPortRepository;
 import com.rulecraft.decisionops.platform.web.DomainProblemException;
 import com.rulecraft.decisionops.projects.ProjectAccessPolicy;
 import java.time.Clock;
@@ -27,16 +28,17 @@ public class CatalogService {
     private final TypeEnumValueRepository enumValues;
     private final DecisionServiceRepository services;
     private final DecisionServiceFieldRepository serviceFields;
+    private final GraphPortRepository graphPorts;
     private final ProjectAccessPolicy access;
     private final AuditService audit;
     private final Clock clock;
 
     public CatalogService(TypeDefinitionRepository types, TypeFieldRepository typeFields,
             TypeEnumValueRepository enumValues, DecisionServiceRepository services,
-            DecisionServiceFieldRepository serviceFields, ProjectAccessPolicy access,
+            DecisionServiceFieldRepository serviceFields, GraphPortRepository graphPorts, ProjectAccessPolicy access,
             AuditService audit, Clock clock) {
         this.types=types; this.typeFields=typeFields; this.enumValues=enumValues; this.services=services;
-        this.serviceFields=serviceFields; this.access=access; this.audit=audit; this.clock=clock;
+        this.serviceFields=serviceFields; this.graphPorts=graphPorts; this.access=access; this.audit=audit; this.clock=clock;
     }
 
     @Transactional(readOnly=true)
@@ -78,7 +80,8 @@ public class CatalogService {
     @Transactional
     public void deleteType(RuleCraftPrincipal actor,UUID projectId,UUID typeId,long version){
         access.requireEdit(actor,projectId); var entity=requireType(actor,projectId,typeId); requireVersion(entity.getVersion(),version);
-        long references=typeFields.countByCustomTypeId(typeId)+serviceFields.countByCustomTypeId(typeId)+types.countByItemCustomTypeId(typeId);
+        long references=typeFields.countByCustomTypeId(typeId)+serviceFields.countByCustomTypeId(typeId)
+                +types.countByItemCustomTypeId(typeId)+graphPorts.countByCustomTypeId(typeId);
         if(references>0) conflict("RC-TYPE-IN-USE","Remove references to this type before deleting it.");
         typeFields.deleteAllByTypeDefinitionId(typeId); enumValues.deleteAllByTypeDefinitionId(typeId); types.delete(entity);
         audit.record(actor.tenantId(),actor.userId(),"TYPE_DELETED","TYPE_DEFINITION",typeId,Map.of("typeKey",entity.getTypeKey()));
