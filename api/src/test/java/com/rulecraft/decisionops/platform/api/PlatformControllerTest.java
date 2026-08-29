@@ -55,6 +55,9 @@ class PlatformControllerTest {
                 .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/tests'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/tests/{testId}/runs'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/regression-matrices'].post").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/regression-matrices/{runId}'].get").exists());
+                .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/regression-matrices/{runId}'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/versions'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/versions/working'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/projects/{projectId}/decision-services/{serviceId}/versions/diff'].get").exists());
     }
 }
