@@ -204,6 +204,47 @@ input::placeholder { color: var(--ink-muted); }
 .status-pill.active { color: var(--success); background: color-mix(in srgb, var(--success) 11%, transparent); }
 .status-pill.disabled { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .compact-state { margin-block-start: 2rem; }
+.workbench-tabs { display: flex; gap: 1.5rem; margin-block-start: 1.4rem; border-block-end: 1px solid var(--border); overflow-x: auto; }
+.workbench-tabs button { display: flex; align-items: center; gap: .55rem; min-block-size: 3rem; padding: .65rem .15rem; color: var(--ink-muted); background: transparent; border: 0; border-block-end: 2px solid transparent; cursor: pointer; font-weight: 720; white-space: nowrap; }
+.workbench-tabs button.current { color: var(--ink); border-block-end-color: var(--accent); }
+.workbench-tabs span { display: grid; place-items: center; min-inline-size: 1.5rem; block-size: 1.5rem; padding-inline: .35rem; color: var(--ink-secondary); background: var(--surface-quiet); border-radius: 1rem; font-size: .66rem; }
+.catalog-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 1.5rem; margin-block-start: 1.25rem; }
+.catalog-toolbar .primary-button { margin: 0; white-space: nowrap; }
+.search-field { inline-size: min(100%, 25rem); }
+.catalog-list { margin-block-start: 1rem; border-block-start: 1px solid var(--border); }
+.catalog-row { display: grid; grid-template-columns: minmax(14rem,1.4fr) minmax(10rem,.7fr) auto auto; align-items: center; gap: 1.5rem; min-block-size: 7rem; padding: 1rem .75rem; border-block-end: 1px solid var(--border); }
+.catalog-row.archived { opacity: .72; }
+.catalog-row h2,.type-card h2 { margin: .4rem 0 .25rem; font-size: 1.05rem; letter-spacing: -.02em; }
+.catalog-row p,.type-card p { margin: 0; color: var(--ink-secondary); font-size: .8rem; line-height: 1.45; }
+.contract-summary { display: flex; align-items: center; gap: .7rem; color: var(--ink-secondary); font-size: .75rem; }
+.status-pill.archived { color: var(--ink-muted); background: var(--surface-quiet); }
+.catalog-empty { margin-block-start: 1rem; padding: clamp(2.5rem,6vw,5rem); color: var(--ink-secondary); background: var(--surface); border: 1px dashed var(--border-strong); text-align: center; }
+.catalog-empty > span { color: var(--accent); font-size: 2rem; }
+.catalog-empty h2 { margin: .7rem 0 .4rem; color: var(--ink); }
+.catalog-empty p { margin: 0; }
+.type-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1rem; margin-block-start: 1rem; }
+.type-card { display: flex; min-block-size: 14rem; flex-direction: column; padding: 1.15rem; background: var(--surface); border: 1px solid var(--border); }
+.type-card > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: .7rem; }
+.type-card small { margin-block-start: auto; padding-block-start: 1.3rem; color: var(--ink-muted); }
+.type-card .danger-action { align-self: flex-start; margin-block-start: .45rem; }
+.row-actions { display: flex; align-items: center; gap: .8rem; }
+.type-card .row-actions { margin-block-start: .25rem; }
+.danger-action { color: var(--danger); }
+.schema-editor { display: grid; gap: 1.25rem; margin-block-start: 1rem; padding: clamp(1.2rem,3vw,2rem); background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow); }
+.editor-title { display: flex; align-items: start; justify-content: space-between; gap: 1rem; padding-block-end: .8rem; border-block-end: 1px solid var(--border); }
+.editor-title h2 { margin: 0; font-size: 1.45rem; }
+.editor-basics { display: grid; grid-template-columns: .7fr 1fr .65fr; gap: 1rem; }
+.wide-field { grid-column: 1/-1; }
+.field-builder { min-inline-size: 0; margin: 0; padding: 1rem; border: 1px solid var(--border); }
+.field-builder legend { padding-inline: .4rem; font-size: .78rem; font-weight: 780; }
+.field-editor { display: grid; grid-template-columns: .8fr 1fr 1fr auto auto; align-items: end; gap: .75rem; padding-block: .75rem; }
+.field-editor + .field-editor,.enum-editor + .enum-editor { border-block-start: 1px solid var(--border); }
+.check-label { display: flex; align-items: center; gap: .4rem; min-block-size: 2.75rem; }
+.check-label input { inline-size: 1rem; min-block-size: 1rem; }
+.add-field { margin-block-start: .5rem; }
+.enum-editor { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: .75rem; padding-block: .75rem; }
+.list-item-editor { inline-size: min(100%,28rem); }
+.schema-editor > .primary-button { justify-self: start; margin: 0; }
 
 @keyframes pulse { 50% { transform: scale(.55); opacity: .45; } }
 @keyframes shimmer { to { background-position: -200% 0; } }
@@ -239,11 +280,26 @@ input::placeholder { color: var(--ink-muted); }
   .data-table { overflow-x: auto; }
   .table-row { min-inline-size: 42rem; }
   .workspace-page { margin-block-start: 2.2rem; }
+  .workbench-tabs { justify-content: space-between; gap: .3rem; overflow-x: visible; }
+  .workbench-tabs button { gap: .25rem; font-size: .71rem; }
+  .workbench-tabs span { min-inline-size: 1.25rem; block-size: 1.25rem; padding-inline: .25rem; }
+  .catalog-toolbar { align-items: stretch; flex-direction: column; }
+  .search-field { inline-size: 100%; }
+  .catalog-row { grid-template-columns: 1fr auto; gap: .8rem; }
+  .catalog-row > div:first-child { grid-column: 1/-1; }
+  .contract-summary { grid-column: 1/-1; }
+  .catalog-row .row-actions { grid-column: 1/-1; justify-content: flex-end; }
+  .type-grid { grid-template-columns: 1fr; }
+  .editor-basics,.field-editor,.enum-editor { grid-template-columns: 1fr; }
+  .wide-field { grid-column: auto; }
+  .field-editor .danger-action,.enum-editor .danger-action { justify-self: start; }
 }
 
 @media (min-width: 761px) and (max-width: 1100px) {
   .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .three-fields { grid-template-columns: 1fr 1fr; }
+  .type-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .field-editor { grid-template-columns: repeat(2,1fr); }
 }
 
 @media (max-width: 360px) {

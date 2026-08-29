@@ -27,14 +27,16 @@ public class ProjectService {
     private final UserAccountRepository users;
     private final AuditService audit;
     private final Clock clock;
+    private final ProjectAccessPolicy access;
 
     public ProjectService(ProjectRepository projects, ProjectMembershipRepository memberships,
-            UserAccountRepository users, AuditService audit, Clock clock) {
+            UserAccountRepository users, AuditService audit, Clock clock, ProjectAccessPolicy access) {
         this.projects = projects;
         this.memberships = memberships;
         this.users = users;
         this.audit = audit;
         this.clock = clock;
+        this.access = access;
     }
 
     @Transactional(readOnly = true)
@@ -65,15 +67,13 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public ProjectView get(RuleCraftPrincipal actor, UUID projectId) {
-        var project = ownedProject(actor, projectId);
-        requireVisible(actor, projectId);
+        var project = access.requireVisible(actor, projectId);
         return viewFor(project, actor);
     }
 
     @Transactional(readOnly = true)
     public List<MemberView> members(RuleCraftPrincipal actor, UUID projectId) {
-        ownedProject(actor, projectId);
-        requireVisible(actor, projectId);
+        access.requireVisible(actor, projectId);
         return memberships.findAllByProjectIdOrderByCreatedAtAsc(projectId).stream().map(membership -> {
             var user = users.findByIdAndTenantId(membership.getUserId(), actor.tenantId()).orElseThrow();
             return new MemberView(user.getId(), user.getDisplayName(), user.getEmail(), membership.getRole().name());
@@ -82,8 +82,7 @@ public class ProjectService {
 
     @Transactional
     public MemberView upsertMember(RuleCraftPrincipal actor, UUID projectId, UUID userId, ProjectRole role) {
-        lockOwnedProject(actor, projectId);
-        requireManage(actor, projectId);
+        access.lockForManage(actor, projectId);
         var user = users.findByIdAndTenantId(userId, actor.tenantId()).orElseThrow(() ->
                 new DomainProblemException(HttpStatus.NOT_FOUND, "RC-USER-NOT-FOUND", "User not found."));
         var existing = memberships.findByTenantIdAndProjectIdAndUserId(actor.tenantId(), projectId, userId);
@@ -103,8 +102,7 @@ public class ProjectService {
 
     @Transactional
     public void removeMember(RuleCraftPrincipal actor, UUID projectId, UUID userId) {
-        lockOwnedProject(actor, projectId);
-        requireManage(actor, projectId);
+        access.lockForManage(actor, projectId);
         var membership = memberships.findByTenantIdAndProjectIdAndUserId(actor.tenantId(), projectId, userId)
                 .orElseThrow(() -> new DomainProblemException(HttpStatus.NOT_FOUND, "RC-MEMBER-NOT-FOUND",
                         "Project membership not found."));
@@ -118,35 +116,8 @@ public class ProjectService {
                 Map.of("userId", userId));
     }
 
-    private Project ownedProject(RuleCraftPrincipal actor, UUID projectId) {
-        return projects.findByIdAndTenantId(projectId, actor.tenantId()).orElseThrow(() ->
-                new DomainProblemException(HttpStatus.NOT_FOUND, "RC-PROJECT-NOT-FOUND", "Project not found."));
-    }
-
-    private Project lockOwnedProject(RuleCraftPrincipal actor, UUID projectId) {
-        return projects.lockByIdAndTenantId(projectId, actor.tenantId()).orElseThrow(() ->
-                new DomainProblemException(HttpStatus.NOT_FOUND, "RC-PROJECT-NOT-FOUND", "Project not found."));
-    }
-
-    private void requireVisible(RuleCraftPrincipal actor, UUID projectId) {
-        if (actor.tenantRole() != TenantRole.ADMIN
-                && memberships.findByTenantIdAndProjectIdAndUserId(actor.tenantId(), projectId, actor.userId()).isEmpty()) {
-            throw new DomainProblemException(HttpStatus.NOT_FOUND, "RC-PROJECT-NOT-FOUND", "Project not found.");
-        }
-    }
-
-    private void requireManage(RuleCraftPrincipal actor, UUID projectId) {
-        if (actor.tenantRole() == TenantRole.ADMIN) return;
-        var membership = memberships.findByTenantIdAndProjectIdAndUserId(actor.tenantId(), projectId, actor.userId());
-        if (membership.isEmpty() || membership.get().getRole() != ProjectRole.OWNER) {
-            throw new DomainProblemException(HttpStatus.FORBIDDEN, "RC-PROJECT-MANAGE-FORBIDDEN",
-                    "Project owner permission is required.");
-        }
-    }
-
     private ProjectView viewFor(Project project, RuleCraftPrincipal actor) {
-        var role = memberships.findByTenantIdAndProjectIdAndUserId(actor.tenantId(), project.getId(), actor.userId())
-                .map(value -> value.getRole().name()).orElse("ADMIN");
+        var role = access.roleFor(actor, project.getId());
         return new ProjectView(project.getId(), project.getProjectKey(), project.getName(), project.getDescription(),
                 role, project.getCreatedAt(), project.getVersion());
     }
