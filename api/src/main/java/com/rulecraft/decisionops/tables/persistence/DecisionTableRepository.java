@@ -9,4 +9,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DecisionTableRepository extends JpaRepository<DecisionTableDefinition,UUID> {
     Optional<DecisionTableDefinition> findByNodeIdAndTenantIdAndProjectId(UUID nodeId,UUID tenantId,UUID projectId);
     List<DecisionTableDefinition> findAllByGraphIdAndTenantIdOrderByUpdatedAtDesc(UUID graphId,UUID tenantId);
+    boolean existsByNodeId(UUID nodeId);
 }

@@ -87,8 +87,8 @@ describe('App', () => {
       return response([]);
     });
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Eligibility graph' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'No graph has been initialized' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Eligibility graph' })).toBeInTheDocument();
   });
 
   it('persists an explicit theme choice', async () => {

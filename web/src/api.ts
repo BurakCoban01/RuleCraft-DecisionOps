@@ -32,6 +32,10 @@ export interface TableRule { id: string; enabled: boolean; description: string |
 export interface TableIssue { code: string; message: string; ruleId: string | null; portId: string | null }
 export interface DecisionTable { id: string; graphId: string; nodeId: string; nodeKey: string; nodeName: string; hitPolicy: HitPolicy; validationStatus: 'VALID' | 'INVALID'; issues: TableIssue[]; inputs: TableColumn[]; output: TableColumn; rules: TableRule[]; updatedAt: string; version: number }
 export interface DecisionTableSummary { nodeId: string; hitPolicy: HitPolicy; validationStatus: 'VALID' | 'INVALID'; enabledRules: number; updatedAt: string; version: number }
+export interface ExpressionIssue { code: string; message: string; line: number; column: number }
+export interface ExpressionSymbol { key: string; label: string; type: TypeRef }
+export interface DecisionExpression { id: string; graphId: string; nodeId: string; nodeKey: string; nodeName: string; languageVersion: 'RCEL-1'; source: string; validationStatus: 'VALID' | 'INVALID'; issues: ExpressionIssue[]; inferredType: string | null; inputs: ExpressionSymbol[]; output: ExpressionSymbol; updatedAt: string; version: number }
+export interface DecisionExpressionSummary { nodeId: string; validationStatus: 'VALID' | 'INVALID'; languageVersion: 'RCEL-1'; updatedAt: string; version: number }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -83,6 +87,12 @@ export const api = {
   decisionTable: (projectId: string, serviceId: string, nodeId: string) => request<DecisionTable | null>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table`).then((value) => value ?? null),
   initializeDecisionTable: (projectId: string, serviceId: string, nodeId: string) => request<DecisionTable>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table`, { method: 'POST' }),
   updateDecisionTable: (projectId: string, serviceId: string, nodeId: string, body: { version: number; hitPolicy: HitPolicy; rules: TableRule[] }) => request<DecisionTable>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table`, { method: 'PUT', body: JSON.stringify(body) }),
+  removeDecisionTable: (projectId: string, serviceId: string, nodeId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table?version=${version}`, { method: 'DELETE' }),
+  decisionExpressionSummaries: (projectId: string, serviceId: string) => request<DecisionExpressionSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/decision-expressions`),
+  decisionExpression: (projectId: string, serviceId: string, nodeId: string) => request<DecisionExpression | null>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`).then((value) => value ?? null),
+  initializeDecisionExpression: (projectId: string, serviceId: string, nodeId: string) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'POST' }),
+  updateDecisionExpression: (projectId: string, serviceId: string, nodeId: string, body: { version: number; source: string }) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'PUT', body: JSON.stringify(body) }),
+  removeDecisionExpression: (projectId: string, serviceId: string, nodeId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression?version=${version}`, { method: 'DELETE' }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),

@@ -13,6 +13,8 @@ Open a persisted graph and choose **Table** on a decision node. The deep link is
 
 Owners, editors, and workspace administrators can author active services. Reviewers and viewers receive the persisted table read-only. Archived services remain readable but cannot be changed.
 
+A decision can have either a table or expression. Use the two-step removal action to deliberately clear the table before choosing an expression implementation.
+
 ## Safety and recovery
 
 Table saves are version guarded. A stale editor must reload instead of overwriting another author. The API rejects foreign project/node access, non-decision attachments, duplicate rule or cell identities, malformed rule shapes, unsupported operators, oversized aggregates, and more than 500 rules.
