@@ -11,6 +11,7 @@ import com.rulecraft.decisionops.expressions.persistence.DecisionExpressionRepos
 import com.rulecraft.decisionops.identity.security.RuleCraftPrincipal;
 import com.rulecraft.decisionops.platform.web.DomainProblemException;
 import com.rulecraft.decisionops.projects.ProjectAccessPolicy;
+import com.rulecraft.decisionops.runtime.types.TypedValueValidator;
 import com.rulecraft.decisionops.tables.domain.*;
 import com.rulecraft.decisionops.tables.persistence.*;
 import java.time.*;
@@ -28,14 +29,11 @@ import tools.jackson.databind.ObjectMapper;
 public class DecisionTableService {
     private static final int MAX_RULES=500;
     private final DecisionTableRepository tables;private final DecisionTableRuleRepository rules;private final DecisionTableEntryRepository entries;
-    private final DecisionGraphService graphService;private final CatalogService catalog;private final TypeDefinitionRepository types;private final DecisionExpressionRepository expressions;
-    private final TypeFieldRepository typeFields;private final TypeEnumValueRepository enumValues;private final ProjectAccessPolicy access;
+    private final DecisionGraphService graphService;private final CatalogService catalog;private final DecisionExpressionRepository expressions;private final TypedValueValidator typedValues;private final ProjectAccessPolicy access;
     private final AuditService audit;private final ObjectMapper mapper;private final Clock clock;
     public DecisionTableService(DecisionTableRepository tables,DecisionTableRuleRepository rules,DecisionTableEntryRepository entries,
-            DecisionGraphService graphService,CatalogService catalog,TypeDefinitionRepository types,TypeFieldRepository typeFields,
-            TypeEnumValueRepository enumValues,DecisionExpressionRepository expressions,ProjectAccessPolicy access,AuditService audit,ObjectMapper mapper,Clock clock){this.tables=tables;
-        this.rules=rules;this.entries=entries;this.graphService=graphService;this.catalog=catalog;this.types=types;this.typeFields=typeFields;
-        this.enumValues=enumValues;this.expressions=expressions;this.access=access;this.audit=audit;this.mapper=mapper;this.clock=clock;}
+            DecisionGraphService graphService,CatalogService catalog,DecisionExpressionRepository expressions,TypedValueValidator typedValues,ProjectAccessPolicy access,AuditService audit,ObjectMapper mapper,Clock clock){this.tables=tables;
+        this.rules=rules;this.entries=entries;this.graphService=graphService;this.catalog=catalog;this.expressions=expressions;this.typedValues=typedValues;this.access=access;this.audit=audit;this.mapper=mapper;this.clock=clock;}
 
     @Transactional(readOnly=true)
     public Optional<TableView> find(RuleCraftPrincipal actor,UUID projectId,UUID serviceId,UUID nodeId){
@@ -105,18 +103,8 @@ public class DecisionTableService {
     private boolean overlap(RuleCommand left,RuleCommand right){var rightByPort=right.inputs().stream().collect(Collectors.toMap(InputEntryCommand::inputPortId,Function.identity()));
         for(var entry:left.inputs()){var other=rightByPort.get(entry.inputPortId());if(entry.operator()==InputOperator.ANY||other.operator()==InputOperator.ANY)continue;
             var a=parse(entry.valueJson());var b=parse(other.valueJson());if(a==null||b==null||!a.equals(b))return false;}return true;}
-    private boolean validJson(String raw,TypeRefCommand ref){var node=parse(raw);return node!=null&&validNode(node,ref,new HashSet<>());}
-    private boolean validNode(JsonNode node,TypeRefCommand ref,Set<UUID> path){if(ref==null)return false;if(ref.builtinType()!=null)return switch(ref.builtinType()){
-        case TEXT->node.isString();case NUMBER->node.isNumber();case BOOLEAN->node.isBoolean();case DATE->node.isString()&&isDate(node.asString());case DATE_TIME->node.isString()&&isDateTime(node.asString());};
-        var type=types.findById(ref.customTypeId()).orElse(null);if(type==null||!path.add(type.getId()))return false;boolean valid;
-        if(type.getKind()==TypeKind.ENUM)valid=node.isString()&&enumValues.findAllByTypeDefinitionIdOrderByPositionAsc(type.getId()).stream().anyMatch(value->value.getValueKey().equals(node.asString()));
-        else if(type.getKind()==TypeKind.LIST)valid=node.isArray()&&node.values().stream().allMatch(item->validNode(item,new TypeRefCommand(type.getItemBuiltinType(),type.getItemCustomTypeId()),new HashSet<>(path)));
-        else {var fields=typeFields.findAllByTypeDefinitionIdOrderByPositionAsc(type.getId());var allowed=fields.stream().map(TypeField::getFieldKey).collect(Collectors.toSet());valid=node.isObject()&&allowed.containsAll(node.propertyNames());
-            if(valid)for(var field:fields){var value=node.get(field.getFieldKey());if(value==null){if(field.isRequired()){valid=false;break;}}else if(!validNode(value,new TypeRefCommand(field.getBuiltinType(),field.getCustomTypeId()),new HashSet<>(path))){valid=false;break;}}}
-        return valid;}
+    private boolean validJson(String raw,TypeRefCommand ref){var node=parse(raw);return node!=null&&ref!=null&&typedValues.valid(node,ref.builtinType(),ref.customTypeId());}
     private JsonNode parse(String raw){if(raw==null||raw.isBlank())return null;try{return mapper.readTree(raw);}catch(JacksonException exception){return null;}}
-    private boolean isDate(String value){try{LocalDate.parse(value);return true;}catch(DateTimeException exception){return false;}}
-    private boolean isDateTime(String value){try{OffsetDateTime.parse(value);return true;}catch(DateTimeException exception){return false;}}
     private TableView view(DecisionTableDefinition table,Context context){var persistedRules=rules.findAllByDecisionTableIdOrderByPositionAsc(table.getId());var byRule=entries.findAllByDecisionTableId(table.getId()).stream().collect(Collectors.groupingBy(DecisionTableInputEntry::getRuleId));
         var expected=context.inputs().stream().map(GraphPortView::id).collect(Collectors.toSet());var schemaIssues=new ArrayList<TableIssue>();
         var ruleViews=persistedRules.stream().map(rule->{var persisted=byRule.getOrDefault(rule.getId(),List.of());var persistedByPort=persisted.stream().collect(Collectors.toMap(DecisionTableInputEntry::getInputPortId,Function.identity()));

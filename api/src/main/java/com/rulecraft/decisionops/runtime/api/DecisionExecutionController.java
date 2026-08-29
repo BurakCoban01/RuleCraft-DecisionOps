@@ -1,0 +1,4 @@
+package com.rulecraft.decisionops.runtime.api;
+import com.rulecraft.decisionops.identity.security.CurrentUser;import com.rulecraft.decisionops.runtime.DecisionExecutionService;import com.rulecraft.decisionops.runtime.DecisionExecutionService.*;import java.util.UUID;import org.springframework.security.core.Authentication;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/v1/projects/{projectId}/decision-services/{serviceId}/sandbox/evaluations")
+public class DecisionExecutionController {private final DecisionExecutionService service;public DecisionExecutionController(DecisionExecutionService service){this.service=service;}@PostMapping EvaluationView evaluate(@PathVariable UUID projectId,@PathVariable UUID serviceId,@RequestBody EvaluationCommand command,Authentication authentication){return service.evaluate(CurrentUser.require(authentication),projectId,serviceId,command);}}

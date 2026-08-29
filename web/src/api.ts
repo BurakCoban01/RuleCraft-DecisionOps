@@ -36,6 +36,8 @@ export interface ExpressionIssue { code: string; message: string; line: number; 
 export interface ExpressionSymbol { key: string; label: string; type: TypeRef }
 export interface DecisionExpression { id: string; graphId: string; nodeId: string; nodeKey: string; nodeName: string; languageVersion: 'RCEL-1'; source: string; validationStatus: 'VALID' | 'INVALID'; issues: ExpressionIssue[]; inferredType: string | null; inputs: ExpressionSymbol[]; output: ExpressionSymbol; updatedAt: string; version: number }
 export interface DecisionExpressionSummary { nodeId: string; validationStatus: 'VALID' | 'INVALID'; languageVersion: 'RCEL-1'; updatedAt: string; version: number }
+export interface DecisionEvaluation { nodeId: string; nodeKey: string; nodeName: string; implementation: 'TABLE' | 'EXPRESSION'; implementationVersion: number; matchedRuleId: string | null; value: unknown }
+export interface SandboxEvaluation { evaluationId: string; decisionServiceId: string; graphVersion: number; outputs: Record<string, unknown>; decisions: DecisionEvaluation[] }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -93,6 +95,7 @@ export const api = {
   initializeDecisionExpression: (projectId: string, serviceId: string, nodeId: string) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'POST' }),
   updateDecisionExpression: (projectId: string, serviceId: string, nodeId: string, body: { version: number; source: string }) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'PUT', body: JSON.stringify(body) }),
   removeDecisionExpression: (projectId: string, serviceId: string, nodeId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression?version=${version}`, { method: 'DELETE' }),
+  evaluateDecisionService: (projectId: string, serviceId: string, inputs: Record<string, unknown>) => request<SandboxEvaluation>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/sandbox/evaluations`, { method: 'POST', body: JSON.stringify({ inputs }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
