@@ -72,6 +72,11 @@ export interface CreatedApiCredential { credential: ApiCredential; secret: strin
 export interface DecisionApiRequest { id: string; requestId: string; operation: 'SINGLE' | 'BATCH'; deploymentId: string; decisionVersionId: string; artifactFingerprint: string; itemCount: number; createdAt: string }
 export interface ApiBatchItemResult { correlationId: string; succeeded: boolean; evaluationId: string | null; outputs: Record<string, unknown> | null; errorCode: string | null; errorDetail: string | null }
 export interface ApiBatchResponse { requestId: string; serviceKey: string; deploymentId: string; decisionVersionId: string; artifactFingerprint: string; status: 'SUCCEEDED' | 'PARTIAL' | 'FAILED'; succeededCount: number; failedCount: number; items: ApiBatchItemResult[] }
+export type TraceChannel = 'SANDBOX' | 'API_SINGLE' | 'API_BATCH' | 'WORKBENCH_BATCH';
+export type TraceStatus = 'SUCCEEDED' | 'FAILED';
+export interface DecisionTraceSummary { evaluationId: string; deploymentId: string; decisionVersionId: string; requestId: string | null; correlationId: string | null; channel: TraceChannel; status: TraceStatus; artifactFingerprint: string; subjectLabel: string; errorCode: string | null; durationMicros: number; stepCount: number; createdAt: string }
+export interface DecisionTraceStep { position: number; nodeKey: string; nodeName: string; implementation: 'TABLE' | 'EXPRESSION'; hitPolicy: HitPolicy | null; matchedRuleId: string | null; inputKeys: string[]; result: unknown }
+export interface DecisionTraceDetail { trace: DecisionTraceSummary; inputFingerprint: string; outputFingerprint: string | null; inputKeys: string[]; outputKeys: string[]; errorDetail: string | null; steps: DecisionTraceStep[] }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -157,6 +162,8 @@ export const api = {
   revokeApiCredential: (projectId: string, serviceId: string, credentialId: string, expectedVersion: number) => request<ApiCredential>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/api-credentials/${credentialId}/revoke`, { method: 'POST', body: JSON.stringify({ expectedVersion }) }),
   decisionApiRequests: (projectId: string, serviceId: string) => request<DecisionApiRequest[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/decision-api/requests`),
   runDecisionApiBatch: (projectId: string, serviceId: string, items: { correlationId: string; inputs: Record<string, unknown> }[], requestId = crypto.randomUUID()) => request<ApiBatchResponse>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/decision-api/batches`, { method: 'POST', body: JSON.stringify({ requestId, items }) }),
+  decisionTraces: (projectId: string, serviceId: string, filters: { channel?: string; status?: string; query?: string } = {}) => { const params = new URLSearchParams(); if (filters.channel) params.set('channel', filters.channel); if (filters.status) params.set('status', filters.status); if (filters.query) params.set('query', filters.query); const suffix = params.size ? `?${params}` : ''; return request<DecisionTraceSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/decision-traces${suffix}`); },
+  decisionTrace: (projectId: string, serviceId: string, evaluationId: string) => request<DecisionTraceDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/decision-traces/${evaluationId}`),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
