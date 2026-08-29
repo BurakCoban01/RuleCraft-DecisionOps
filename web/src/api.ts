@@ -93,6 +93,11 @@ export interface AnalyticsSnapshot { window: AnalyticsWindow; channel: TraceChan
 export interface AnalyticsActiveArtifact { deploymentId: string; sequenceNumber: number; decisionVersionId: string; artifactFingerprint: string }
 export interface RuntimeBenchmark { id: string; deploymentId: string; decisionVersionId: string; artifactFingerprint: string; inputFingerprint: string; outputFingerprint: string; iterations: number; warmupIterations: number; totalDurationMicros: number; minMicros: number; meanMicros: number; p50Micros: number; p95Micros: number; p99Micros: number; maxMicros: number; throughputPerSecond: number; capturedByName: string; capturedAt: string }
 export interface RuntimeAnalyticsWorkspace { serviceKey: string; serviceName: string; analytics: AnalyticsSnapshot; activeArtifact: AnalyticsActiveArtifact | null; benchmarks: RuntimeBenchmark[]; canBenchmark: boolean; accessRole: string }
+export interface OperationalCheck { key: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string }
+export interface OperationalPosture { status: 'READY' | 'DEGRADED'; fingerprint: string; checkedAt: string; schemaVersion: string; runningMatrices: number; inconsistentRuntimePointers: number; checks: OperationalCheck[] }
+export interface OperationalRecovery { id: string; sourceFingerprint: string; resultFingerprint: string; interruptedMatrices: number; clearedRuntimePointers: number; status: 'READY' | 'DEGRADED'; executedByName: string; executedAt: string }
+export interface SecurityPosture { csrfProtected: boolean; secureHeaders: boolean; apiKeysHashed: boolean; correlationIds: boolean; failedLoginLimit: number; runtimeRequestsPerMinute: number; loginDenials: number; runtimeDenials: number; trackedRateLimitKeys: number }
+export interface OperationsWorkspace { posture: OperationalPosture; recoveries: OperationalRecovery[]; security: SecurityPosture; processUptimeSeconds: number }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -186,6 +191,8 @@ export const api = {
   impactAssessment: (projectId: string, serviceId: string, assessmentId: string) => request<ImpactAssessmentDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/dependency-impact/assessments/${assessmentId}`),
   runtimeAnalytics: (projectId: string, serviceId: string, window: AnalyticsWindow, channel: TraceChannel | 'ALL') => request<RuntimeAnalyticsWorkspace>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-analytics?window=${window}&channel=${channel}`),
   runRuntimeBenchmark: (projectId: string, serviceId: string, expectedDeploymentId: string, iterations: number, warmupIterations: number, inputs: Record<string, unknown>, clientRequestId = crypto.randomUUID()) => request<RuntimeBenchmark>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-analytics/benchmarks`, { method: 'POST', body: JSON.stringify({ clientRequestId, expectedDeploymentId, iterations, warmupIterations, inputs }) }),
+  operations: () => request<OperationsWorkspace>('/api/v1/operations'),
+  runRecovery: (expectedFingerprint: string, clientRequestId = crypto.randomUUID()) => request<OperationalRecovery>('/api/v1/operations/recoveries', { method: 'POST', body: JSON.stringify({ clientRequestId, expectedFingerprint }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
