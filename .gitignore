@@ -12,7 +12,11 @@ web/test-results/
 .tools/
 .env
 .env.local
+.env.*
+!.env.example
+!.env.production.example
 *.log
+backups/
 
 # IDE / OS
 .idea/

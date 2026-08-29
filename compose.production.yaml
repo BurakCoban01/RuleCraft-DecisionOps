@@ -1,0 +1,95 @@
+name: rulecraft-decisionops-production
+
+services:
+  db:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: ${RULECRAFT_DB_NAME:-rulecraft}
+      POSTGRES_USER: ${RULECRAFT_DB_USER:-rulecraft}
+      POSTGRES_PASSWORD: ${RULECRAFT_DB_PASSWORD:?Set RULECRAFT_DB_PASSWORD}
+    volumes:
+      - rulecraft-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt: ["no-new-privileges:true"]
+    networks: [data]
+    deploy:
+      resources:
+        limits: { memory: 768M, cpus: "1.00" }
+        reservations: { memory: 256M }
+
+  api:
+    image: rulecraft-api:${RULECRAFT_BUILD_VERSION:?Set RULECRAFT_BUILD_VERSION}
+    build:
+      context: ./api
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      RULECRAFT_DB_URL: jdbc:postgresql://db:5432/${RULECRAFT_DB_NAME:-rulecraft}
+      RULECRAFT_DB_USER: ${RULECRAFT_DB_USER:-rulecraft}
+      RULECRAFT_DB_PASSWORD: ${RULECRAFT_DB_PASSWORD:?Set RULECRAFT_DB_PASSWORD}
+      RULECRAFT_DB_POOL_SIZE: ${RULECRAFT_DB_POOL_SIZE:-8}
+      RULECRAFT_BUILD_VERSION: ${RULECRAFT_BUILD_VERSION:?Set RULECRAFT_BUILD_VERSION}
+      RULECRAFT_SESSION_COOKIE_SECURE: ${RULECRAFT_SESSION_COOKIE_SECURE:-true}
+      RULECRAFT_BOOTSTRAP_ENABLED: ${RULECRAFT_BOOTSTRAP_ENABLED:-false}
+      RULECRAFT_BOOTSTRAP_WORKSPACE: ${RULECRAFT_BOOTSTRAP_WORKSPACE:-}
+      RULECRAFT_BOOTSTRAP_TENANT_NAME: ${RULECRAFT_BOOTSTRAP_TENANT_NAME:-}
+      RULECRAFT_BOOTSTRAP_ADMIN_EMAIL: ${RULECRAFT_BOOTSTRAP_ADMIN_EMAIL:-}
+      RULECRAFT_BOOTSTRAP_ADMIN_NAME: ${RULECRAFT_BOOTSTRAP_ADMIN_NAME:-}
+      RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD: ${RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD:-}
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 180s
+    restart: unless-stopped
+    stop_grace_period: 45s
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [data, edge]
+    deploy:
+      resources:
+        limits: { memory: 768M, cpus: "1.50" }
+        reservations: { memory: 384M }
+
+  web:
+    image: rulecraft-web:${RULECRAFT_BUILD_VERSION:?Set RULECRAFT_BUILD_VERSION}
+    build:
+      context: ./web
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "${RULECRAFT_BIND_ADDRESS:-127.0.0.1}:${RULECRAFT_WEB_PORT:-50113}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m", "/var/cache/nginx:rw,noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [edge]
+    deploy:
+      resources:
+        limits: { memory: 128M, cpus: "0.50" }
+        reservations: { memory: 32M }
+
+networks:
+  edge: {}
+  data: { internal: true }
+
+volumes:
+  rulecraft-postgres: {}
