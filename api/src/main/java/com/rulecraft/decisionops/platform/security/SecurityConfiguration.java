@@ -2,10 +2,12 @@ package com.rulecraft.decisionops.platform.security;
 
 import com.rulecraft.decisionops.identity.security.RuleCraftUserDetailsService;
 import com.rulecraft.decisionops.identity.security.ActiveAccountFilter;
+import com.rulecraft.decisionops.decisionapi.security.DecisionApiKeyFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Locale;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -34,6 +36,21 @@ public class SecurityConfiguration {
     }
 
     @Bean
+    @Order(1)
+    SecurityFilterChain decisionApiSecurity(HttpSecurity http,DecisionApiKeyFilter apiKeyFilter) throws Exception {
+        http.securityMatcher("/api/runtime/v1/**")
+                .csrf(csrf->csrf.disable())
+                .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers->headers.contentSecurityPolicy(csp->csp.policyDirectives("default-src 'none'; frame-ancestors 'none'")).frameOptions(frame->frame.deny()))
+                .exceptionHandling(errors->errors.authenticationEntryPoint((request,response,exception)->writeProblem(response,401,"RC-API-KEY-INVALID","Provide an active decision API key.")).accessDeniedHandler((request,response,exception)->writeProblem(response,403,"RC-API-FORBIDDEN","This API key cannot perform that action.")))
+                .authorizeHttpRequests(authorize->authorize.anyRequest().authenticated())
+                .addFilterAfter(apiKeyFilter,SecurityContextHolderFilter.class)
+                .requestCache(cache->cache.disable()).httpBasic(basic->basic.disable()).formLogin(form->form.disable()).logout(logout->logout.disable());
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http, ActiveAccountFilter activeAccountFilter) throws Exception {
         var csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfRepository.setCookiePath("/");
