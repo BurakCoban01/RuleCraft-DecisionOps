@@ -25,7 +25,7 @@ describe('GraphModeler', () => {
   });
 
   it('renders a persisted graph read-only for viewers', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() => response(graph));
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => String(input).endsWith('/decision-tables') ? response([]) : response(graph));
     render(<GraphModeler projectId="p1" service={service} types={[]} canEdit={false} onBack={() => undefined}/>);
     expect(await screen.findByText('Read-only access. Owners and editors can change this graph.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add decision' })).not.toBeInTheDocument();

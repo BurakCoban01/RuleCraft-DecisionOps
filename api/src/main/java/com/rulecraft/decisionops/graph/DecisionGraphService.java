@@ -70,7 +70,7 @@ public class DecisionGraphService {
         var graph=requireGraph(actor,projectId,serviceId);if(command==null||command.version()!=graph.getVersion())
             conflict("RC-GRAPH-STALE","The graph changed while you were editing it. Refresh before saving again.");
         var normalized=validateAndNormalize(actor,projectId,service,safe(command.nodes()),safe(command.edges()));
-        deleteChildren(graph.getId());persistChildren(actor,graph,normalized.nodes(),normalized.edges());
+        reconcileChildren(actor,graph,normalized.nodes(),normalized.edges());
         var issues=completionIssues(service,normalized.nodes(),normalized.edges());
         graph.touch(issues.isEmpty()?GraphValidationStatus.VALID:GraphValidationStatus.INVALID,Instant.now(clock));graphs.saveAndFlush(graph);
         audit.record(actor.tenantId(),actor.userId(),"DECISION_GRAPH_UPDATED","DECISION_GRAPH",graph.getId(),
@@ -92,7 +92,7 @@ public class DecisionGraphService {
         var decisionPorts=decisions.stream().flatMap(n->n.ports().stream()).map(PortCommand::id).collect(Collectors.toSet());
         var preservedEdges=edges.findAllByGraphIdOrderByIdAsc(graph.getId()).stream().filter(e->decisionPorts.contains(e.getSourcePortId())&&decisionPorts.contains(e.getTargetPortId()))
                 .map(e->new EdgeCommand(e.getId(),e.getSourcePortId(),e.getTargetPortId())).toList();
-        var normalized=validateAndNormalize(actor,projectId,service,allNodes,preservedEdges);deleteChildren(graph.getId());persistChildren(actor,graph,normalized.nodes(),normalized.edges());
+        var normalized=validateAndNormalize(actor,projectId,service,allNodes,preservedEdges);reconcileChildren(actor,graph,normalized.nodes(),normalized.edges());
         var issues=completionIssues(service,normalized.nodes(),normalized.edges());graph.touch(issues.isEmpty()?GraphValidationStatus.VALID:GraphValidationStatus.INVALID,Instant.now(clock));graphs.saveAndFlush(graph);
         audit.record(actor.tenantId(),actor.userId(),"DECISION_GRAPH_CONTRACT_SYNCHRONIZED","DECISION_GRAPH",graph.getId(),Map.of("decisionServiceId",serviceId));
         return view(graph,service);
@@ -238,7 +238,23 @@ public class DecisionGraphService {
                 port.portKey(),port.label(),port.type().builtinType(),port.type().customTypeId(),port.required(),port.position()));
         ports.flush();for(var edge:graphEdges)edges.save(new GraphEdge(edge.id(),actor.tenantId(),graph.getId(),edge.sourcePortId(),edge.targetPortId()));edges.flush();
     }
-    private void deleteChildren(UUID graphId){edges.deleteAllByGraphId(graphId);edges.flush();ports.deleteAllByGraphId(graphId);ports.flush();nodes.deleteAllByGraphId(graphId);nodes.flush();}
+    private void reconcileChildren(RuleCraftPrincipal actor,DecisionGraph graph,List<NodeCommand> graphNodes,List<EdgeCommand> graphEdges){
+        var existingEdges=edges.findAllByGraphIdOrderByIdAsc(graph.getId()).stream().collect(Collectors.toMap(GraphEdge::getId,Function.identity()));
+        var desiredEdgeIds=graphEdges.stream().map(EdgeCommand::id).collect(Collectors.toSet());
+        edges.deleteAll(existingEdges.values().stream().filter(edge->!desiredEdgeIds.contains(edge.getId())).toList());edges.flush();
+        var existingPorts=ports.findAllByGraphIdOrderByNodeIdAscDirectionAscPositionAsc(graph.getId()).stream().collect(Collectors.toMap(GraphPort::getId,Function.identity()));
+        var desiredPortIds=graphNodes.stream().flatMap(node->node.ports().stream()).map(PortCommand::id).collect(Collectors.toSet());
+        ports.deleteAll(existingPorts.values().stream().filter(port->!desiredPortIds.contains(port.getId())).toList());ports.flush();
+        var existingNodes=nodes.findAllByGraphIdOrderByPositionXAscPositionYAsc(graph.getId()).stream().collect(Collectors.toMap(GraphNode::getId,Function.identity()));
+        var desiredNodeIds=graphNodes.stream().map(NodeCommand::id).collect(Collectors.toSet());
+        nodes.deleteAll(existingNodes.values().stream().filter(node->!desiredNodeIds.contains(node.getId())).toList());nodes.flush();
+        for(var command:graphNodes){var entity=existingNodes.get(command.id());if(entity==null)entity=new GraphNode(command.id(),actor.tenantId(),graph.getId(),command.nodeKey(),command.name(),command.kind(),command.serviceFieldKey(),command.positionX(),command.positionY());
+            else entity.update(command.nodeKey(),command.name(),command.kind(),command.serviceFieldKey(),command.positionX(),command.positionY());nodes.save(entity);}nodes.flush();
+        for(var node:graphNodes)for(var command:node.ports()){var entity=existingPorts.get(command.id());if(entity==null)entity=new GraphPort(command.id(),actor.tenantId(),graph.getId(),node.id(),command.direction(),command.portKey(),command.label(),command.type().builtinType(),command.type().customTypeId(),command.required(),command.position());
+            else {if(!entity.getNodeId().equals(node.id()))bad("RC-GRAPH-PORT-IDENTITY","A persisted port cannot move to another node.");entity.update(command.direction(),command.portKey(),command.label(),command.type().builtinType(),command.type().customTypeId(),command.required(),command.position());}ports.save(entity);}ports.flush();
+        for(var command:graphEdges){var entity=existingEdges.get(command.id());if(entity==null)edges.save(new GraphEdge(command.id(),actor.tenantId(),graph.getId(),command.sourcePortId(),command.targetPortId()));
+            else if(!entity.getSourcePortId().equals(command.sourcePortId())||!entity.getTargetPortId().equals(command.targetPortId()))bad("RC-GRAPH-EDGE-IDENTITY","Change a connection by removing it and creating a new one.");}edges.flush();
+    }
     private DecisionGraph requireGraph(RuleCraftPrincipal actor,UUID projectId,UUID serviceId){return graphs.findByDecisionServiceIdAndTenantIdAndProjectId(serviceId,actor.tenantId(),projectId)
             .orElseThrow(()->new DomainProblemException(HttpStatus.NOT_FOUND,"RC-GRAPH-NOT-FOUND","This decision service does not have a graph yet."));}
     private void validateTypeRef(RuleCraftPrincipal actor,UUID projectId,TypeRefCommand ref){
