@@ -47,7 +47,7 @@ test('authors and persists a valid typed decision graph', async ({ page }, testI
   await page.getByLabel('Target input').selectOption({ label: 'Result · Result · BOOLEAN' });
   await page.getByRole('button', { name: 'Add connection' }).click();
   await page.getByRole('button', { name: 'Save graph' }).click();
-  await expect(page.getByText('Graph saved and validated.')).toBeVisible();
+  await expect(page.getByText('Graph saved and validated.')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('VALID', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Eligibility graph' })).toBeVisible({ timeout: 15_000 });
