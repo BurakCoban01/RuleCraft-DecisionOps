@@ -38,6 +38,10 @@ export interface DecisionExpression { id: string; graphId: string; nodeId: strin
 export interface DecisionExpressionSummary { nodeId: string; validationStatus: 'VALID' | 'INVALID'; languageVersion: 'RCEL-1'; updatedAt: string; version: number }
 export interface DecisionEvaluation { nodeId: string; nodeKey: string; nodeName: string; implementation: 'TABLE' | 'EXPRESSION'; implementationVersion: number; matchedRuleId: string | null; value: unknown }
 export interface SandboxEvaluation { evaluationId: string; decisionServiceId: string; graphVersion: number; outputs: Record<string, unknown>; decisions: DecisionEvaluation[] }
+export interface TestIssue { code: string; message: string; fieldKey: string | null; target: 'INPUT' | 'OUTPUT' | 'TEST' }
+export interface TestRunSummary { id: string; status: 'PASSED' | 'FAILED'; graphVersion: number; executedAt: string }
+export interface DecisionTestCase { id: string; testKey: string; name: string; description: string | null; inputs: Record<string, unknown>; expectedOutputs: Record<string, unknown>; validationStatus: 'VALID' | 'INVALID'; issues: TestIssue[]; latestRun: TestRunSummary | null; updatedAt: string; version: number }
+export interface DecisionTestRun { id: string; testCaseId: string; testCaseVersion: number; evaluationId: string; graphVersion: number; status: 'PASSED' | 'FAILED'; expectedOutputs: Record<string, unknown>; actualOutputs: Record<string, unknown>; decisions: DecisionEvaluation[]; executedAt: string }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -96,6 +100,12 @@ export const api = {
   updateDecisionExpression: (projectId: string, serviceId: string, nodeId: string, body: { version: number; source: string }) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'PUT', body: JSON.stringify(body) }),
   removeDecisionExpression: (projectId: string, serviceId: string, nodeId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression?version=${version}`, { method: 'DELETE' }),
   evaluateDecisionService: (projectId: string, serviceId: string, inputs: Record<string, unknown>) => request<SandboxEvaluation>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/sandbox/evaluations`, { method: 'POST', body: JSON.stringify({ inputs }) }),
+  decisionTests: (projectId: string, serviceId: string) => request<DecisionTestCase[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests`),
+  createDecisionTest: (projectId: string, serviceId: string, body: unknown) => request<DecisionTestCase>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests`, { method: 'POST', body: JSON.stringify(body) }),
+  updateDecisionTest: (projectId: string, serviceId: string, testId: string, body: unknown) => request<DecisionTestCase>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  removeDecisionTest: (projectId: string, serviceId: string, testId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}?version=${version}`, { method: 'DELETE' }),
+  runDecisionTest: (projectId: string, serviceId: string, testId: string) => request<DecisionTestRun>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}/runs`, { method: 'POST' }),
+  decisionTestRuns: (projectId: string, serviceId: string, testId: string) => request<DecisionTestRun[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}/runs`),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
