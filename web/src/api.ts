@@ -53,6 +53,12 @@ export type ChangeCategory = 'CONTRACT' | 'GRAPH' | 'IMPLEMENTATION' | 'TEST';
 export type ChangeImpact = 'BREAKING' | 'BEHAVIORAL' | 'NON_BREAKING';
 export interface SemanticChange { category: ChangeCategory; kind: 'ADDED' | 'REMOVED' | 'CHANGED'; impact: ChangeImpact; path: string; label: string; before: unknown | null; after: unknown | null }
 export interface DecisionVersionDiff { base: DecisionVersionSummary; target: DecisionVersionSummary; changes: SemanticChange[]; breakingCount: number; behavioralCount: number; nonBreakingCount: number }
+export type ChangeRequestState = 'DRAFT' | 'SUBMITTED' | 'CHANGES_REQUESTED' | 'APPROVED' | 'REJECTED' | 'PROMOTED';
+export interface ChangeRequestView { id: string; requestNumber: number; decisionVersionId: string; decisionVersionNumber: number; decisionVersionLabel: string; validationStatus: 'VALID' | 'INVALID'; title: string; summary: string | null; state: ChangeRequestState; createdByName: string; createdAt: string; updatedAt: string; version: number; stale: boolean }
+export interface ChangeEvent { id: string; eventType: string; fromState: ChangeRequestState | null; toState: ChangeRequestState; note: string | null; actorName: string; createdAt: string }
+export interface PromotionView { changeRequestId: string; decisionVersionId: string; decisionVersionNumber: number; decisionVersionLabel: string; promotedByName: string; promotedAt: string; revision: number }
+export interface ApprovalWorkflow { requests: ChangeRequestView[]; promotion: PromotionView | null; accessRole: string }
+export interface ChangeRequestDetail { request: ChangeRequestView; events: ChangeEvent[] }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -124,6 +130,10 @@ export const api = {
   workingDecisionVersion: (projectId: string, serviceId: string) => request<WorkingDecisionState>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions/working`),
   captureDecisionVersion: (projectId: string, serviceId: string, body: { label: string; note: string; expectedServiceVersion: number; expectedGraphVersion: number; expectedFingerprint: string; clientRequestId?: string }) => request<DecisionVersionSummary>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions`, { method: 'POST', body: JSON.stringify({ ...body, clientRequestId: body.clientRequestId ?? crypto.randomUUID() }) }),
   decisionVersionDiff: (projectId: string, serviceId: string, baseId: string, targetId: string) => request<DecisionVersionDiff>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions/diff?baseId=${baseId}&targetId=${targetId}`),
+  approvalWorkflow: (projectId: string, serviceId: string) => request<ApprovalWorkflow>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests`),
+  changeRequestDetail: (projectId: string, serviceId: string, requestId: string) => request<ChangeRequestDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests/${requestId}`),
+  createChangeRequest: (projectId: string, serviceId: string, body: { decisionVersionId: string; title: string; summary: string; clientRequestId?: string }) => request<ChangeRequestView>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests`, { method: 'POST', body: JSON.stringify({ ...body, clientRequestId: body.clientRequestId ?? crypto.randomUUID() }) }),
+  transitionChangeRequest: (projectId: string, serviceId: string, requestId: string, action: 'submit' | 'request-changes' | 'approve' | 'reject' | 'promote', expectedVersion: number, note: string, clientRequestId = crypto.randomUUID()) => request<ChangeRequestView>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests/${requestId}/${action}`, { method: 'POST', body: JSON.stringify({ clientRequestId, expectedVersion, note }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
