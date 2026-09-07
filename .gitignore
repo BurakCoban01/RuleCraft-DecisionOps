@@ -1,0 +1,22 @@
+# Java / Maven
+api/target/
+.mvn/wrapper/maven-wrapper.jar
+
+# Node / frontend
+web/node_modules/
+web/dist/
+web/playwright-report/
+web/test-results/
+
+# Local tooling and runtime
+.tools/
+.env
+.env.local
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
