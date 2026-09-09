@@ -11,3 +11,15 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  session:
+    jdbc:
+      initialize-schema: never
+
+rulecraft:
+  bootstrap:
+    enabled: true
+    workspace: acme-rules
+    tenant-name: Acme Rules
+    admin-email: admin@example.test
+    admin-name: Ada Admin
+    admin-password: CorrectHorseBattery12!

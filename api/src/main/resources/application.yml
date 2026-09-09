@@ -16,6 +16,10 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  session:
+    jdbc:
+      initialize-schema: never
+    timeout: 30m
   mvc:
     problemdetails:
       enabled: true
@@ -50,3 +54,10 @@ springdoc:
 rulecraft:
   build:
     version: ${RULECRAFT_BUILD_VERSION:0.1.0-dev}
+  bootstrap:
+    enabled: ${RULECRAFT_BOOTSTRAP_ENABLED:false}
+    workspace: ${RULECRAFT_BOOTSTRAP_WORKSPACE:}
+    tenant-name: ${RULECRAFT_BOOTSTRAP_TENANT_NAME:}
+    admin-email: ${RULECRAFT_BOOTSTRAP_ADMIN_EMAIL:}
+    admin-name: ${RULECRAFT_BOOTSTRAP_ADMIN_NAME:}
+    admin-password: ${RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD:}
