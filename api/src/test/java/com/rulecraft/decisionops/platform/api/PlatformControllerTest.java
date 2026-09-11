@@ -34,7 +34,7 @@ class PlatformControllerTest {
     @Test
     void deniesUnspecifiedRoutes() throws Exception {
         mockMvc.perform(post("/api/v1/platform/admin").with(csrf()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
