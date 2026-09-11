@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -42,6 +44,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail handleUnreadable(HttpMessageNotReadableException exception) {
         return problem(HttpStatus.BAD_REQUEST, "RC-REQUEST-MALFORMED", "The request body is malformed or contains an unsupported value.");
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+    ProblemDetail handleRequestValue(Exception exception) {
+        return problem(HttpStatus.BAD_REQUEST, "RC-REQUEST-VALUE", "A path or query value is missing or invalid.");
     }
 
     @ExceptionHandler(Exception.class)

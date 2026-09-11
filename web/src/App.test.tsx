@@ -51,6 +51,27 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in to RuleCraft' })).toBeInTheDocument();
   });
 
+  it('opens the persisted project catalog with service and type states', async () => {
+    const project = { id: 'p1', projectKey: 'PRICING', name: 'Pricing decisions', description: 'Governed pricing', accessRole: 'OWNER', createdAt: '2026-08-29T00:00:00Z', version: 0 };
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes('/platform')) return response(manifest);
+      if (url.endsWith('/session')) return response(authenticated);
+      if (url.endsWith('/decision-services')) return response([]);
+      if (url.endsWith('/types')) return response([]);
+      if (url.endsWith('/members')) return response([]);
+      if (url.endsWith('/projects')) return response([project]);
+      if (url.endsWith('/users')) return response([]);
+      return response({});
+    });
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: /PRICING Pricing decisions/ }));
+    expect(await screen.findByRole('heading', { name: 'No decision services yet' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Types/ }));
+    expect(await screen.findByRole('heading', { name: 'No custom types yet' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New type' })).toBeInTheDocument();
+  });
+
   it('persists an explicit theme choice', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => String(input).includes('/platform') ? response(manifest) : response(anonymous));
     render(<App />);
