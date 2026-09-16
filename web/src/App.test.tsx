@@ -72,6 +72,25 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'New type' })).toBeInTheDocument();
   });
 
+  it('restores graph descendants from a direct service URL', async () => {
+    const project = { id: 'p1', projectKey: 'PRICING', name: 'Pricing decisions', description: null, accessRole: 'OWNER', createdAt: '2026-08-29T00:00:00Z', version: 0 };
+    const service = { id: 's1', serviceKey: 'ELIGIBILITY', name: 'Eligibility graph', description: null, status: 'ACTIVE', inputs: [], outputs: [], updatedAt: '2026-08-29T00:00:00Z', version: 0 };
+    history.replaceState({}, '', '/projects/p1/services/s1/graph/nodes/n1/table');
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes('/platform')) return response(manifest);
+      if (url.endsWith('/session')) return response(authenticated);
+      if (url.endsWith('/decision-services')) return response([service]);
+      if (url.endsWith('/types') || url.endsWith('/members') || url.endsWith('/users')) return response([]);
+      if (url.endsWith('/projects')) return response([project]);
+      if (url.endsWith('/graph')) return Promise.resolve(new Response(null, { status: 204 }));
+      return response([]);
+    });
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Eligibility graph' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'No graph has been initialized' })).toBeInTheDocument();
+  });
+
   it('persists an explicit theme choice', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => String(input).includes('/platform') ? response(manifest) : response(anonymous));
     render(<App />);

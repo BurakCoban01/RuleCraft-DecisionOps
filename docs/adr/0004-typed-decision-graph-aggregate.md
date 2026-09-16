@@ -15,7 +15,7 @@ Each decision service owns at most one `decision_graph` aggregate. Its relationa
 - `DECISION` nodes have author-controlled typed input ports and exactly one typed output port. decision tables and expression authoring will attach implementations to these stable node identities.
 - Edges always connect an output port to one input port. The source and target type references must match exactly; an input accepts one incoming edge.
 - Structural corruption, foreign type references, duplicate identities, self-links, and cycles are rejected. Missing required connections and orphan decisions are saveable validation issues, leaving the aggregate `INVALID`.
-- Aggregate replacement is transactional and guarded by the graph version. Every mutation is authorized at the project boundary and audited.
+- Aggregate reconciliation is transactional and guarded by the graph version. Existing node and port identities remain stable for downstream implementations; removed children are deleted in dependency order. Every mutation is authorized at the project boundary and audited.
 - A service-contract change produces an explicit drift state. Contract synchronization regenerates controlled nodes, preserves decision nodes and decision-to-decision edges, and removes connections that touched the old contract.
 - A missing graph is a normal `204 No Content` read state; initialization is an explicit audited command.
 

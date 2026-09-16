@@ -24,6 +24,14 @@ export interface GraphNode { id: string; nodeKey: string; name: string; kind: Gr
 export interface GraphEdge { id: string; sourcePortId: string; targetPortId: string }
 export interface GraphIssue { severity: 'ERROR'; code: string; message: string; nodeId: string | null; portId: string | null }
 export interface DecisionGraph { id: string; decisionServiceId: string; serviceKey: string; serviceName: string; validationStatus: 'VALID' | 'INVALID'; issues: GraphIssue[]; nodes: GraphNode[]; edges: GraphEdge[]; updatedAt: string; version: number }
+export type HitPolicy = 'UNIQUE' | 'FIRST';
+export type InputOperator = 'ANY' | 'EQUALS';
+export interface TableColumn { portId: string; portKey: string; label: string; type: TypeRef; required: boolean }
+export interface TableInputEntry { id: string; inputPortId: string; operator: InputOperator; valueJson: string | null }
+export interface TableRule { id: string; enabled: boolean; description: string | null; inputs: TableInputEntry[]; outputValueJson: string | null }
+export interface TableIssue { code: string; message: string; ruleId: string | null; portId: string | null }
+export interface DecisionTable { id: string; graphId: string; nodeId: string; nodeKey: string; nodeName: string; hitPolicy: HitPolicy; validationStatus: 'VALID' | 'INVALID'; issues: TableIssue[]; inputs: TableColumn[]; output: TableColumn; rules: TableRule[]; updatedAt: string; version: number }
+export interface DecisionTableSummary { nodeId: string; hitPolicy: HitPolicy; validationStatus: 'VALID' | 'INVALID'; enabledRules: number; updatedAt: string; version: number }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -71,6 +79,10 @@ export const api = {
   initializeDecisionGraph: (projectId: string, serviceId: string) => request<DecisionGraph>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph`, { method: 'POST' }),
   updateDecisionGraph: (projectId: string, serviceId: string, body: { version: number; nodes: GraphNode[]; edges: GraphEdge[] }) => request<DecisionGraph>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph`, { method: 'PUT', body: JSON.stringify(body) }),
   synchronizeDecisionGraph: (projectId: string, serviceId: string, version: number) => request<DecisionGraph>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/contract-sync`, { method: 'POST', body: JSON.stringify({ version }) }),
+  decisionTableSummaries: (projectId: string, serviceId: string) => request<DecisionTableSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/decision-tables`),
+  decisionTable: (projectId: string, serviceId: string, nodeId: string) => request<DecisionTable | null>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table`).then((value) => value ?? null),
+  initializeDecisionTable: (projectId: string, serviceId: string, nodeId: string) => request<DecisionTable>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table`, { method: 'POST' }),
+  updateDecisionTable: (projectId: string, serviceId: string, nodeId: string, body: { version: number; hitPolicy: HitPolicy; rules: TableRule[] }) => request<DecisionTable>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-table`, { method: 'PUT', body: JSON.stringify(body) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),

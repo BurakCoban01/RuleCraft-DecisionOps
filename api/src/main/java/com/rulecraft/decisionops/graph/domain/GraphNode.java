@@ -19,7 +19,9 @@ public class GraphNode {
         this.id=id;this.tenantId=tenantId;this.graphId=graphId;this.nodeKey=nodeKey;this.name=name;this.kind=kind;
         this.serviceFieldKey=serviceFieldKey;this.positionX=x;this.positionY=y;
     }
-    public UUID getId(){return id;} public String getNodeKey(){return nodeKey;} public String getName(){return name;}
+    public void update(String nodeKey,String name,GraphNodeKind kind,String serviceFieldKey,int x,int y){this.nodeKey=nodeKey;this.name=name;
+        this.kind=kind;this.serviceFieldKey=serviceFieldKey;this.positionX=x;this.positionY=y;}
+    public UUID getId(){return id;} public UUID getGraphId(){return graphId;} public String getNodeKey(){return nodeKey;} public String getName(){return name;}
     public GraphNodeKind getKind(){return kind;} public String getServiceFieldKey(){return serviceFieldKey;}
     public int getPositionX(){return positionX;} public int getPositionY(){return positionY;}
 }

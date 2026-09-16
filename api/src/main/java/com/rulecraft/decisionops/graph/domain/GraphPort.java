@@ -22,7 +22,9 @@ public class GraphPort {
             BuiltinType builtinType,UUID customTypeId,boolean required,int position){this.id=id;this.tenantId=tenantId;this.graphId=graphId;
         this.nodeId=nodeId;this.direction=direction;this.portKey=portKey;this.label=label;this.builtinType=builtinType;
         this.customTypeId=customTypeId;this.required=required;this.position=position;}
-    public UUID getId(){return id;} public UUID getNodeId(){return nodeId;} public GraphPortDirection getDirection(){return direction;}
+    public void update(GraphPortDirection direction,String portKey,String label,BuiltinType builtinType,UUID customTypeId,boolean required,int position){
+        this.direction=direction;this.portKey=portKey;this.label=label;this.builtinType=builtinType;this.customTypeId=customTypeId;this.required=required;this.position=position;}
+    public UUID getId(){return id;} public UUID getGraphId(){return graphId;} public UUID getNodeId(){return nodeId;} public GraphPortDirection getDirection(){return direction;}
     public String getPortKey(){return portKey;} public String getLabel(){return label;} public BuiltinType getBuiltinType(){return builtinType;}
     public UUID getCustomTypeId(){return customTypeId;} public boolean isRequired(){return required;} public int getPosition(){return position;}
 }
