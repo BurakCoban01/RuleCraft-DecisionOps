@@ -1,0 +1,93 @@
+package com.rulecraft.decisionops.expressions.language;
+
+import com.rulecraft.decisionops.catalog.domain.*;
+import com.rulecraft.decisionops.catalog.persistence.*;
+import com.rulecraft.decisionops.graph.DecisionGraphService.GraphPortView;
+import java.math.BigDecimal;
+import java.time.*;
+import java.util.*;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ExpressionLanguage {
+    public static final String VERSION="RCEL-1";public static final int MAX_SOURCE=12_000;private static final int MAX_TOKENS=2_048;
+    private final TypeDefinitionRepository types;private final TypeFieldRepository fields;private final TypeEnumValueRepository enumValues;
+    public ExpressionLanguage(TypeDefinitionRepository types,TypeFieldRepository fields,TypeEnumValueRepository enumValues){this.types=types;this.fields=fields;this.enumValues=enumValues;}
+
+    public Validation validate(String source,List<GraphPortView> inputs,GraphPortView output){
+        if(source==null||source.isBlank())return invalid("RC-EXPR-EMPTY","Enter an expression.",1,1);
+        if(source.length()>MAX_SOURCE)return invalid("RC-EXPR-SOURCE-LIMIT","Expressions can contain at most 12000 characters.",1,1);
+        try{var expression=new Parser(new Lexer(source).scan()).parse();var checker=new Checker(inputs);var actual=checker.infer(expression);
+            if(!checker.compatible(expression,actual,TypeRef.of(output.type().builtinType(),output.type().customTypeId())))
+                throw new LanguageFailure("RC-EXPR-RESULT-TYPE","The expression result must match the decision output type.",expression.line(),expression.column());
+            return new Validation(true,List.of(),actual.label(types));
+        }catch(LanguageFailure failure){return invalid(failure.code,failure.getMessage(),failure.line,failure.column);}
+    }
+    private Validation invalid(String code,String message,int line,int column){return new Validation(false,List.of(new Issue(code,message,line,column)),null);}
+    public record Issue(String code,String message,int line,int column){}
+    public record Validation(boolean valid,List<Issue> issues,String inferredType){}
+
+    private enum TokenType {IDENTIFIER,STRING,NUMBER,TRUE,FALSE,IF,THEN,ELSE,AND,OR,NOT,LPAREN,RPAREN,COMMA,DOT,PLUS,MINUS,STAR,SLASH,EQUAL,NOT_EQUAL,LESS,LESS_EQUAL,GREATER,GREATER_EQUAL,EOF}
+    private record Token(TokenType type,String lexeme,Object literal,int line,int column){}
+    private static final class Lexer {
+        private static final Map<String,TokenType> KEYWORDS=Map.of("true",TokenType.TRUE,"false",TokenType.FALSE,"if",TokenType.IF,"then",TokenType.THEN,"else",TokenType.ELSE,"and",TokenType.AND,"or",TokenType.OR,"not",TokenType.NOT);
+        private final String source;private final List<Token> tokens=new ArrayList<>();private int start,current,line=1,column=1,startColumn=1;
+        Lexer(String source){this.source=source;}
+        List<Token> scan(){while(!end()){start=current;startColumn=column;scanToken();if(tokens.size()>MAX_TOKENS)fail("RC-EXPR-TOKEN-LIMIT","Expressions can contain at most 2048 tokens.");}tokens.add(new Token(TokenType.EOF,"",null,line,column));return tokens;}
+        private void scanToken(){char value=advance();switch(value){case ' ','\r','\t'->{}case '\n'->{line++;column=1;}case '('->add(TokenType.LPAREN);case ')'->add(TokenType.RPAREN);case ','->add(TokenType.COMMA);case '.'->add(TokenType.DOT);case '+'->add(TokenType.PLUS);case '-'->add(TokenType.MINUS);case '*'->add(TokenType.STAR);case '/'->add(TokenType.SLASH);case '='->add(TokenType.EQUAL);case '!'->{if(match('='))add(TokenType.NOT_EQUAL);else fail("RC-EXPR-TOKEN","Use != for inequality.");}case '<'->add(match('=')?TokenType.LESS_EQUAL:TokenType.LESS);case '>'->add(match('=')?TokenType.GREATER_EQUAL:TokenType.GREATER);case '"'->string();default->{if(Character.isDigit(value))number();else if(Character.isLetter(value)||value=='_')identifier();else fail("RC-EXPR-TOKEN","Unsupported character in expression.");}}}
+        private void string(){var decoded=new StringBuilder();while(!end()&&peek()!='"'){char value=advance();if(value=='\n'||value=='\r')fail("RC-EXPR-STRING","String literals cannot span lines.");if(value=='\\'){if(end())fail("RC-EXPR-STRING","Unterminated string literal.");char escaped=advance();decoded.append(switch(escaped){case '"'->'"';case '\\'->'\\';case 'n'->'\n';case 'r'->'\r';case 't'->'\t';default->throw new LanguageFailure("RC-EXPR-STRING","Unsupported string escape.",line,column-1);});}else decoded.append(value);}if(end())fail("RC-EXPR-STRING","Unterminated string literal.");advance();add(TokenType.STRING,decoded.toString());}
+        private void number(){while(Character.isDigit(peek()))advance();if(peek()=='.'&&Character.isDigit(peekNext())){advance();while(Character.isDigit(peek()))advance();}try{add(TokenType.NUMBER,new BigDecimal(source.substring(start,current)));}catch(NumberFormatException failure){fail("RC-EXPR-NUMBER","Invalid numeric literal.");}}
+        private void identifier(){while(Character.isLetterOrDigit(peek())||peek()=='_')advance();var text=source.substring(start,current);add(KEYWORDS.getOrDefault(text,TokenType.IDENTIFIER));}
+        private boolean end(){return current>=source.length();}private char advance(){column++;return source.charAt(current++);}private char peek(){return end()?'\0':source.charAt(current);}private char peekNext(){return current+1>=source.length()?'\0':source.charAt(current+1);}private boolean match(char expected){if(end()||source.charAt(current)!=expected)return false;advance();return true;}
+        private void add(TokenType type){add(type,null);}private void add(TokenType type,Object literal){tokens.add(new Token(type,source.substring(start,current),literal,line,startColumn));}private void fail(String code,String message){throw new LanguageFailure(code,message,line,startColumn);}
+    }
+
+    private sealed interface Expr permits Literal,Reference,Unary,Binary,Conditional,Call {int line();int column();}
+    private record Literal(Object value,int line,int column) implements Expr{}
+    private record Reference(List<String> path,int line,int column) implements Expr{}
+    private record Unary(Token operator,Expr operand,int line,int column) implements Expr{}
+    private record Binary(Expr left,Token operator,Expr right,int line,int column) implements Expr{}
+    private record Conditional(Expr condition,Expr whenTrue,Expr whenFalse,int line,int column) implements Expr{}
+    private record Call(String name,List<Expr> arguments,int line,int column) implements Expr{}
+
+    private static final class Parser {
+        private static final int MAX_DEPTH=64;private final List<Token> tokens;private int current,depth;
+        Parser(List<Token> tokens){this.tokens=tokens;}
+        Expr parse(){var result=expression();if(!check(TokenType.EOF))failure(peek(),"RC-EXPR-SYNTAX","Unexpected token after expression.");return result;}
+        private Expr expression(){if(++depth>MAX_DEPTH)failure(peek(),"RC-EXPR-DEPTH","Expression nesting cannot exceed 64 levels.");try{return match(TokenType.IF)?conditional(previous()):or();}finally{depth--;}}
+        private Expr conditional(Token keyword){var condition=expression();consume(TokenType.THEN,"Expected then after condition.");var whenTrue=expression();consume(TokenType.ELSE,"Expected else after the true result.");return new Conditional(condition,whenTrue,expression(),keyword.line(),keyword.column());}
+        private Expr or(){var value=and();while(match(TokenType.OR)){var operator=previous();value=new Binary(value,operator,and(),operator.line(),operator.column());}return value;}
+        private Expr and(){var value=equality();while(match(TokenType.AND)){var operator=previous();value=new Binary(value,operator,equality(),operator.line(),operator.column());}return value;}
+        private Expr equality(){var value=comparison();while(match(TokenType.EQUAL,TokenType.NOT_EQUAL)){var operator=previous();value=new Binary(value,operator,comparison(),operator.line(),operator.column());}return value;}
+        private Expr comparison(){var value=term();while(match(TokenType.LESS,TokenType.LESS_EQUAL,TokenType.GREATER,TokenType.GREATER_EQUAL)){var operator=previous();value=new Binary(value,operator,term(),operator.line(),operator.column());}return value;}
+        private Expr term(){var value=factor();while(match(TokenType.PLUS,TokenType.MINUS)){var operator=previous();value=new Binary(value,operator,factor(),operator.line(),operator.column());}return value;}
+        private Expr factor(){var value=unary();while(match(TokenType.STAR,TokenType.SLASH)){var operator=previous();value=new Binary(value,operator,unary(),operator.line(),operator.column());}return value;}
+        private Expr unary(){if(match(TokenType.NOT,TokenType.MINUS)){var operator=previous();return new Unary(operator,unary(),operator.line(),operator.column());}return primary();}
+        private Expr primary(){if(match(TokenType.TRUE))return new Literal(true,previous().line(),previous().column());if(match(TokenType.FALSE))return new Literal(false,previous().line(),previous().column());if(match(TokenType.STRING,TokenType.NUMBER))return new Literal(previous().literal(),previous().line(),previous().column());
+            if(match(TokenType.IDENTIFIER)){var name=previous();if(match(TokenType.LPAREN)){var arguments=new ArrayList<Expr>();if(!check(TokenType.RPAREN))do{arguments.add(expression());}while(match(TokenType.COMMA));consume(TokenType.RPAREN,"Expected ) after function arguments.");return new Call(name.lexeme(),arguments,name.line(),name.column());}
+                var path=new ArrayList<String>();path.add(name.lexeme());while(match(TokenType.DOT))path.add(consume(TokenType.IDENTIFIER,"Expected a field name after .").lexeme());return new Reference(path,name.line(),name.column());}
+            if(match(TokenType.LPAREN)){var opening=previous();var value=expression();consume(TokenType.RPAREN,"Expected ) after expression.");return value;}failure(peek(),"RC-EXPR-SYNTAX","Expected a literal, input reference, function, or parenthesized expression.");return null;}
+        private boolean match(TokenType... types){for(var type:types)if(check(type)){advance();return true;}return false;}private Token consume(TokenType type,String message){if(check(type))return advance();failure(peek(),"RC-EXPR-SYNTAX",message);return null;}private boolean check(TokenType type){return peek().type()==type;}private Token advance(){if(!check(TokenType.EOF))current++;return previous();}private Token peek(){return tokens.get(current);}private Token previous(){return tokens.get(current-1);}private void failure(Token token,String code,String message){throw new LanguageFailure(code,message,token.line(),token.column());}
+    }
+
+    private final class Checker {
+        private final Map<String,GraphPortView> inputs;
+        Checker(List<GraphPortView> inputs){this.inputs=inputs.stream().collect(java.util.stream.Collectors.toMap(GraphPortView::portKey,port->port,(left,right)->left));}
+        TypeRef infer(Expr expression){return switch(expression){case Literal literal->literal.value() instanceof Boolean?TypeRef.builtin(BuiltinType.BOOLEAN):literal.value() instanceof BigDecimal?TypeRef.builtin(BuiltinType.NUMBER):TypeRef.builtin(BuiltinType.TEXT);case Reference reference->reference(reference);case Unary unary->unary(unary);case Binary binary->binary(binary);case Conditional conditional->conditional(conditional);case Call call->call(call);};}
+        private TypeRef reference(Reference reference){var root=inputs.get(reference.path().getFirst());if(root==null)throw failure("RC-EXPR-UNKNOWN-NAME","Unknown decision input '"+reference.path().getFirst()+"'.",reference);var current=TypeRef.of(root.type().builtinType(),root.type().customTypeId());
+            for(int index=1;index<reference.path().size();index++){var type=current.customId()==null?null:types.findById(current.customId()).orElse(null);if(type==null||type.getKind()!=TypeKind.OBJECT)throw failure("RC-EXPR-FIELD","Only object inputs expose fields.",reference);var name=reference.path().get(index);var field=fields.findAllByTypeDefinitionIdOrderByPositionAsc(type.getId()).stream().filter(value->value.getFieldKey().equals(name)).findFirst().orElseThrow(()->failure("RC-EXPR-FIELD","Unknown field '"+name+"'.",reference));current=TypeRef.of(field.getBuiltinType(),field.getCustomTypeId());}return current;}
+        private TypeRef unary(Unary unary){var operand=infer(unary.operand());if(unary.operator().type()==TokenType.NOT){require(operand,TypeRef.builtin(BuiltinType.BOOLEAN),"not requires a boolean operand.",unary);return operand;}require(operand,TypeRef.builtin(BuiltinType.NUMBER),"Unary - requires a number.",unary);return operand;}
+        private TypeRef binary(Binary binary){var left=infer(binary.left());var right=infer(binary.right());return switch(binary.operator().type()){case AND,OR->{require(left,TypeRef.builtin(BuiltinType.BOOLEAN),"Boolean operators require boolean operands.",binary);require(right,left,"Boolean operators require boolean operands.",binary);yield left;}case PLUS,MINUS,STAR,SLASH->{require(left,TypeRef.builtin(BuiltinType.NUMBER),"Arithmetic operators require number operands.",binary);require(right,left,"Arithmetic operators require number operands.",binary);yield left;}case LESS,LESS_EQUAL,GREATER,GREATER_EQUAL->{if(!left.isOneOf(BuiltinType.NUMBER,BuiltinType.DATE,BuiltinType.DATE_TIME))throw failure("RC-EXPR-OPERATOR-TYPE","Ordered comparisons support number, date, and date-time values.",binary);require(right,left,"Comparison operands must have the same type.",binary);yield TypeRef.builtin(BuiltinType.BOOLEAN);}case EQUAL,NOT_EQUAL->{if(!compatible(binary.right(),right,left)&&!compatible(binary.left(),left,right))throw failure("RC-EXPR-OPERATOR-TYPE","Equality operands must have compatible types.",binary);yield TypeRef.builtin(BuiltinType.BOOLEAN);}default->throw failure("RC-EXPR-SYNTAX","Unsupported operator.",binary);};}
+        private TypeRef conditional(Conditional conditional){require(infer(conditional.condition()),TypeRef.builtin(BuiltinType.BOOLEAN),"if requires a boolean condition.",conditional.condition());var left=infer(conditional.whenTrue());var right=infer(conditional.whenFalse());if(!left.equals(right))throw failure("RC-EXPR-BRANCH-TYPE","then and else results must have the same type.",conditional);return left;}
+        private TypeRef call(Call call){return switch(call.name()){case "lower","upper"->{arity(call,1);require(infer(call.arguments().getFirst()),TypeRef.builtin(BuiltinType.TEXT),call.name()+" requires text.",call);yield TypeRef.builtin(BuiltinType.TEXT);}case "contains"->{arity(call,2);for(var argument:call.arguments())require(infer(argument),TypeRef.builtin(BuiltinType.TEXT),"contains requires text arguments.",call);yield TypeRef.builtin(BuiltinType.BOOLEAN);}case "length"->{arity(call,1);var type=infer(call.arguments().getFirst());if(type.builtin()!=BuiltinType.TEXT&&!isList(type))throw failure("RC-EXPR-FUNCTION-TYPE","length requires text or a list.",call);yield TypeRef.builtin(BuiltinType.NUMBER);}case "date"->{arity(call,1);var literal=textLiteral(call.arguments().getFirst(),"date");try{LocalDate.parse(literal);}catch(DateTimeException failure){throw failure("RC-EXPR-DATE","date requires an ISO-8601 date literal.",call);}yield TypeRef.builtin(BuiltinType.DATE);}case "dateTime"->{arity(call,1);var literal=textLiteral(call.arguments().getFirst(),"dateTime");try{OffsetDateTime.parse(literal);}catch(DateTimeException failure){throw failure("RC-EXPR-DATE-TIME","dateTime requires an ISO-8601 offset date-time literal.",call);}yield TypeRef.builtin(BuiltinType.DATE_TIME);}default->throw failure("RC-EXPR-FUNCTION","Function '"+call.name()+"' is not in the safe allowlist.",call);};}
+        boolean compatible(Expr expression,TypeRef actual,TypeRef expected){if(actual.equals(expected))return true;if(expected.customId()!=null&&actual.builtin()==BuiltinType.TEXT){var definition=types.findById(expected.customId()).orElse(null);return definition!=null&&definition.getKind()==TypeKind.ENUM&&enumExpression(expression,definition);}return false;}
+        private boolean enumExpression(Expr expression,TypeDefinition definition){if(expression instanceof Literal literal&&literal.value() instanceof String value)return enumValues.findAllByTypeDefinitionIdOrderByPositionAsc(definition.getId()).stream().anyMatch(item->item.getValueKey().equals(value));if(expression instanceof Conditional conditional)return enumExpression(conditional.whenTrue(),definition)&&enumExpression(conditional.whenFalse(),definition);return false;}
+        private boolean isList(TypeRef ref){if(ref.customId()==null)return false;var type=types.findById(ref.customId()).orElse(null);return type!=null&&type.getKind()==TypeKind.LIST;}
+        private String textLiteral(Expr value,String function){if(value instanceof Literal literal&&literal.value() instanceof String text)return text;throw failure("RC-EXPR-FUNCTION-TYPE",function+" requires a string literal.",value);}
+        private void arity(Call call,int count){if(call.arguments().size()!=count)throw failure("RC-EXPR-FUNCTION-ARITY",call.name()+" expects "+count+" argument"+(count==1?"":"s")+".",call);}
+        private void require(TypeRef actual,TypeRef expected,String message,Expr at){if(!actual.equals(expected))throw failure("RC-EXPR-OPERATOR-TYPE",message,at);}private LanguageFailure failure(String code,String message,Expr at){return new LanguageFailure(code,message,at.line(),at.column());}
+    }
+
+    private record TypeRef(BuiltinType builtin,UUID customId){static TypeRef builtin(BuiltinType type){return new TypeRef(type,null);}static TypeRef of(BuiltinType builtin,UUID custom){return new TypeRef(builtin,custom);}boolean isOneOf(BuiltinType... values){return builtin!=null&&Arrays.asList(values).contains(builtin);}String label(TypeDefinitionRepository types){return builtin!=null?builtin.name():types.findById(customId).map(TypeDefinition::getName).orElse("CUSTOM");}}
+    private static final class LanguageFailure extends RuntimeException {private final String code;private final int line,column;LanguageFailure(String code,String message,int line,int column){super(message);this.code=code;this.line=line;this.column=column;}}
+}

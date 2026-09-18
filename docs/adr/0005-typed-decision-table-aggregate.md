@@ -18,6 +18,7 @@ Each decision node may own at most one relational decision-table aggregate:
 - Graph saves reconcile existing node and port identities instead of replacing them, preserving table foreign keys. When new decision inputs appear, reads expose regenerated `ANY` cells plus `RC-TABLE-SCHEMA-DRIFT`; an author must review and save before the table becomes valid again.
 - Administrators, owners, and editors mutate active services. Reviewers and viewers read. Archived services are read-only. Initialization and updates are audited, tenant/project scoped, and version guarded.
 - A missing table is a normal `204 No Content` state and initialization is an explicit command.
+- A decision may own a table or expression, never both. Either implementation can be removed only through an authorized, version-guarded, audited command before switching kinds.
 
 ## Consequences
 

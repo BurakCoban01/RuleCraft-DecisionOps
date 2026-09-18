@@ -7,6 +7,7 @@ import com.rulecraft.decisionops.catalog.persistence.*;
 import com.rulecraft.decisionops.graph.DecisionGraphService;
 import com.rulecraft.decisionops.graph.DecisionGraphService.*;
 import com.rulecraft.decisionops.graph.domain.*;
+import com.rulecraft.decisionops.expressions.persistence.DecisionExpressionRepository;
 import com.rulecraft.decisionops.identity.security.RuleCraftPrincipal;
 import com.rulecraft.decisionops.platform.web.DomainProblemException;
 import com.rulecraft.decisionops.projects.ProjectAccessPolicy;
@@ -27,14 +28,14 @@ import tools.jackson.databind.ObjectMapper;
 public class DecisionTableService {
     private static final int MAX_RULES=500;
     private final DecisionTableRepository tables;private final DecisionTableRuleRepository rules;private final DecisionTableEntryRepository entries;
-    private final DecisionGraphService graphService;private final CatalogService catalog;private final TypeDefinitionRepository types;
+    private final DecisionGraphService graphService;private final CatalogService catalog;private final TypeDefinitionRepository types;private final DecisionExpressionRepository expressions;
     private final TypeFieldRepository typeFields;private final TypeEnumValueRepository enumValues;private final ProjectAccessPolicy access;
     private final AuditService audit;private final ObjectMapper mapper;private final Clock clock;
     public DecisionTableService(DecisionTableRepository tables,DecisionTableRuleRepository rules,DecisionTableEntryRepository entries,
             DecisionGraphService graphService,CatalogService catalog,TypeDefinitionRepository types,TypeFieldRepository typeFields,
-            TypeEnumValueRepository enumValues,ProjectAccessPolicy access,AuditService audit,ObjectMapper mapper,Clock clock){this.tables=tables;
+            TypeEnumValueRepository enumValues,DecisionExpressionRepository expressions,ProjectAccessPolicy access,AuditService audit,ObjectMapper mapper,Clock clock){this.tables=tables;
         this.rules=rules;this.entries=entries;this.graphService=graphService;this.catalog=catalog;this.types=types;this.typeFields=typeFields;
-        this.enumValues=enumValues;this.access=access;this.audit=audit;this.mapper=mapper;this.clock=clock;}
+        this.enumValues=enumValues;this.expressions=expressions;this.access=access;this.audit=audit;this.mapper=mapper;this.clock=clock;}
 
     @Transactional(readOnly=true)
     public Optional<TableView> find(RuleCraftPrincipal actor,UUID projectId,UUID serviceId,UUID nodeId){
@@ -49,7 +50,7 @@ public class DecisionTableService {
     @Transactional
     public TableView initialize(RuleCraftPrincipal actor,UUID projectId,UUID serviceId,UUID nodeId){
         var context=context(actor,projectId,serviceId,nodeId,true);if(tables.findByNodeIdAndTenantIdAndProjectId(nodeId,actor.tenantId(),projectId).isPresent())
-            conflict("RC-TABLE-EXISTS","This decision already has a table. Refresh to continue editing.");var now=Instant.now(clock);
+            conflict("RC-TABLE-EXISTS","This decision already has a table. Refresh to continue editing.");if(expressions.existsByNodeId(nodeId))conflict("RC-IMPLEMENTATION-EXISTS","Remove the decision expression before choosing a table implementation.");var now=Instant.now(clock);
         var table=tables.saveAndFlush(new DecisionTableDefinition(actor.tenantId(),projectId,context.graph().id(),nodeId,actor.userId(),now));
         audit.record(actor.tenantId(),actor.userId(),"DECISION_TABLE_INITIALIZED","DECISION_TABLE",table.getId(),Map.of("nodeId",nodeId));return view(table,context);
     }
@@ -67,6 +68,7 @@ public class DecisionTableService {
         audit.record(actor.tenantId(),actor.userId(),"DECISION_TABLE_UPDATED","DECISION_TABLE",table.getId(),Map.of("hitPolicy",command.hitPolicy().name(),"rules",requested.size(),"status",table.getValidationStatus().name()));
         return view(table,context);
     }
+    @Transactional public void remove(RuleCraftPrincipal actor,UUID projectId,UUID serviceId,UUID nodeId,long version){context(actor,projectId,serviceId,nodeId,true);var table=requireTable(actor,projectId,nodeId);if(version!=table.getVersion())conflict("RC-TABLE-STALE","The decision table changed. Refresh before removing it.");var id=table.getId();tables.delete(table);tables.flush();audit.record(actor.tenantId(),actor.userId(),"DECISION_TABLE_REMOVED","DECISION_TABLE",id,Map.of("nodeId",nodeId));}
 
     private Context context(RuleCraftPrincipal actor,UUID projectId,UUID serviceId,UUID nodeId,boolean edit){
         if(edit)access.requireEdit(actor,projectId);else access.requireVisible(actor,projectId);var service=catalog.getService(actor,projectId,serviceId);
