@@ -18,4 +18,4 @@ Owners, editors, and workspace administrators can author active services. Review
 
 Graph saves are version guarded. A stale editor receives a refresh action instead of overwriting another author's work. The API rejects foreign project types, contract-node tampering, cycles, type mismatches, duplicate keys or ids, multiple incoming links, oversized aggregates, and coordinates outside the bounded workspace. Empty, loading, unavailable, invalid, stale, permission, archived, success, and contract-drift states are explicit.
 
-decision graph defines structure and typed dependencies only. Decision-table configuration, expressions, evaluation, test scenarios, version diff, and promotion do not yet exist.
+Decision tables and expressions provide mutually exclusive implementations for decision nodes. A saved graph can be opened in the execution sandbox when authors or reviewers need to exercise its current typed contract. Scenario persistence, version diff, promotion, and deployment remain later-phase capabilities.
