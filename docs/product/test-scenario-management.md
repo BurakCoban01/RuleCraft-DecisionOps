@@ -26,4 +26,4 @@ The scenario grid shows the latest result and supports name/key search, individu
 
 ## Boundaries
 
-test scenarios runs one persisted case at a time and stores completed comparisons. It does not yet provide suites, tags, bulk selection, a regression/simulation matrix, scheduled runs, durable execution-error records, baseline pinning, version diff, promotion gates, deployment selection, public decision APIs, or idempotency keys. Those belong to regression matrices and subsequent extensions.
+Individual scenario actions still run one case at a time. regression matrices adds bounded, idempotent bulk selection and durable regression/simulation evidence in the separate matrix workbench. Scheduled suites, tags, historical-model replay, baseline pinning, version diff, promotion gates, deployment selection, and public decision APIs remain later-phase concerns.
