@@ -4,15 +4,17 @@ import com.rulecraft.decisionops.catalog.domain.*;
 import com.rulecraft.decisionops.catalog.persistence.*;
 import com.rulecraft.decisionops.graph.DecisionGraphService.GraphPortView;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.*;
 import java.util.*;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.*;
 
 @Component
 public class ExpressionLanguage {
     public static final String VERSION="RCEL-1";public static final int MAX_SOURCE=12_000;private static final int MAX_TOKENS=2_048;
-    private final TypeDefinitionRepository types;private final TypeFieldRepository fields;private final TypeEnumValueRepository enumValues;
-    public ExpressionLanguage(TypeDefinitionRepository types,TypeFieldRepository fields,TypeEnumValueRepository enumValues){this.types=types;this.fields=fields;this.enumValues=enumValues;}
+    private final TypeDefinitionRepository types;private final TypeFieldRepository fields;private final TypeEnumValueRepository enumValues;private final ObjectMapper mapper;
+    public ExpressionLanguage(TypeDefinitionRepository types,TypeFieldRepository fields,TypeEnumValueRepository enumValues,ObjectMapper mapper){this.types=types;this.fields=fields;this.enumValues=enumValues;this.mapper=mapper;}
 
     public Validation validate(String source,List<GraphPortView> inputs,GraphPortView output){
         if(source==null||source.isBlank())return invalid("RC-EXPR-EMPTY","Enter an expression.",1,1);
@@ -23,9 +25,11 @@ public class ExpressionLanguage {
             return new Validation(true,List.of(),actual.label(types));
         }catch(LanguageFailure failure){return invalid(failure.code,failure.getMessage(),failure.line,failure.column);}
     }
+    public Evaluation evaluate(String source,List<GraphPortView> inputs,GraphPortView output,Map<String,JsonNode> values){var validation=validate(source,inputs,output);if(!validation.valid())return new Evaluation(null,validation.issues());try{var expression=new Parser(new Lexer(source).scan()).parse();return new Evaluation(new Evaluator(values).evaluate(expression),List.of());}catch(LanguageFailure failure){return new Evaluation(null,List.of(new Issue(failure.code,failure.getMessage(),failure.line,failure.column)));}}
     private Validation invalid(String code,String message,int line,int column){return new Validation(false,List.of(new Issue(code,message,line,column)),null);}
     public record Issue(String code,String message,int line,int column){}
     public record Validation(boolean valid,List<Issue> issues,String inferredType){}
+    public record Evaluation(JsonNode value,List<Issue> issues){public boolean successful(){return issues.isEmpty();}}
 
     private enum TokenType {IDENTIFIER,STRING,NUMBER,TRUE,FALSE,IF,THEN,ELSE,AND,OR,NOT,LPAREN,RPAREN,COMMA,DOT,PLUS,MINUS,STAR,SLASH,EQUAL,NOT_EQUAL,LESS,LESS_EQUAL,GREATER,GREATER_EQUAL,EOF}
     private record Token(TokenType type,String lexeme,Object literal,int line,int column){}
@@ -86,6 +90,17 @@ public class ExpressionLanguage {
         private String textLiteral(Expr value,String function){if(value instanceof Literal literal&&literal.value() instanceof String text)return text;throw failure("RC-EXPR-FUNCTION-TYPE",function+" requires a string literal.",value);}
         private void arity(Call call,int count){if(call.arguments().size()!=count)throw failure("RC-EXPR-FUNCTION-ARITY",call.name()+" expects "+count+" argument"+(count==1?"":"s")+".",call);}
         private void require(TypeRef actual,TypeRef expected,String message,Expr at){if(!actual.equals(expected))throw failure("RC-EXPR-OPERATOR-TYPE",message,at);}private LanguageFailure failure(String code,String message,Expr at){return new LanguageFailure(code,message,at.line(),at.column());}
+    }
+
+    private final class Evaluator {
+        private final Map<String,JsonNode> values;Evaluator(Map<String,JsonNode> values){this.values=values;}
+        JsonNode evaluate(Expr expression){return switch(expression){case Literal literal->mapper.valueToTree(literal.value());case Reference reference->reference(reference);case Unary unary->unary(unary);case Binary binary->binary(binary);case Conditional conditional->evaluate(conditional.condition()).booleanValue()?evaluate(conditional.whenTrue()):evaluate(conditional.whenFalse());case Call call->call(call);};}
+        private JsonNode reference(Reference reference){var value=values.get(reference.path().getFirst());if(value==null)throw failure("RC-EXEC-INPUT-MISSING","The expression requires input '"+reference.path().getFirst()+"'.",reference);for(int index=1;index<reference.path().size();index++){value=value.get(reference.path().get(index));if(value==null)throw failure("RC-EXEC-FIELD-MISSING","The expression requires field '"+String.join(".",reference.path().subList(0,index+1))+"'.",reference);}return value;}
+        private JsonNode unary(Unary unary){var value=evaluate(unary.operand());return unary.operator().type()==TokenType.NOT?mapper.valueToTree(!value.booleanValue()):number(value.decimalValue().negate());}
+        private JsonNode binary(Binary binary){if(binary.operator().type()==TokenType.AND){var left=evaluate(binary.left());return mapper.valueToTree(left.booleanValue()&&evaluate(binary.right()).booleanValue());}if(binary.operator().type()==TokenType.OR){var left=evaluate(binary.left());return mapper.valueToTree(left.booleanValue()||evaluate(binary.right()).booleanValue());}var left=evaluate(binary.left());var right=evaluate(binary.right());return switch(binary.operator().type()){case PLUS->number(left.decimalValue().add(right.decimalValue()));case MINUS->number(left.decimalValue().subtract(right.decimalValue()));case STAR->number(left.decimalValue().multiply(right.decimalValue()));case SLASH->{if(right.decimalValue().compareTo(BigDecimal.ZERO)==0)throw failure("RC-EXEC-DIVIDE-BY-ZERO","Division by zero is not allowed.",binary);yield number(left.decimalValue().divide(right.decimalValue(),MathContext.DECIMAL128));}case EQUAL->mapper.valueToTree(equal(left,right));case NOT_EQUAL->mapper.valueToTree(!equal(left,right));case LESS->mapper.valueToTree(compare(left,right)<0);case LESS_EQUAL->mapper.valueToTree(compare(left,right)<=0);case GREATER->mapper.valueToTree(compare(left,right)>0);case GREATER_EQUAL->mapper.valueToTree(compare(left,right)>=0);default->throw failure("RC-EXEC-OPERATOR","Unsupported runtime operator.",binary);};}
+        private JsonNode call(Call call){var arguments=call.arguments().stream().map(this::evaluate).toList();return switch(call.name()){case "lower"->mapper.valueToTree(arguments.getFirst().asString().toLowerCase(Locale.ROOT));case "upper"->mapper.valueToTree(arguments.getFirst().asString().toUpperCase(Locale.ROOT));case "contains"->mapper.valueToTree(arguments.getFirst().asString().contains(arguments.get(1).asString()));case "length"->number(BigDecimal.valueOf(arguments.getFirst().isArray()?arguments.getFirst().size():arguments.getFirst().asString().codePointCount(0,arguments.getFirst().asString().length())));case "date","dateTime"->arguments.getFirst();default->throw failure("RC-EXEC-FUNCTION","Unsupported runtime function.",call);};}
+        private boolean equal(JsonNode left,JsonNode right){return left.isNumber()&&right.isNumber()?left.decimalValue().compareTo(right.decimalValue())==0:left.equals(right);}private int compare(JsonNode left,JsonNode right){if(left.isNumber())return left.decimalValue().compareTo(right.decimalValue());var a=left.asString();var b=right.asString();try{return LocalDate.parse(a).compareTo(LocalDate.parse(b));}catch(DateTimeException ignored){return OffsetDateTime.parse(a).compareTo(OffsetDateTime.parse(b));}}
+        private JsonNode number(BigDecimal value){return mapper.valueToTree(value.stripTrailingZeros());}private LanguageFailure failure(String code,String message,Expr at){return new LanguageFailure(code,message,at.line(),at.column());}
     }
 
     private record TypeRef(BuiltinType builtin,UUID customId){static TypeRef builtin(BuiltinType type){return new TypeRef(type,null);}static TypeRef of(BuiltinType builtin,UUID custom){return new TypeRef(builtin,custom);}boolean isOneOf(BuiltinType... values){return builtin!=null&&Arrays.asList(values).contains(builtin);}String label(TypeDefinitionRepository types){return builtin!=null?builtin.name():types.findById(customId).map(TypeDefinition::getName).orElse("CUSTOM");}}
