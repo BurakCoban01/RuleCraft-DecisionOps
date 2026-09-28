@@ -47,6 +47,12 @@ export type MatrixCaseStatus = 'PASSED' | 'FAILED' | 'ERROR';
 export interface MatrixRunSummary { id: string; clientRequestId: string; status: MatrixRunStatus; selectedCount: number; passedCount: number; failedCount: number; errorCount: number; startedAt: string; completedAt: string | null }
 export interface MatrixCaseResult { id: string; position: number; testCaseId: string; testCaseVersion: number; testKey: string; testName: string; status: MatrixCaseStatus; testRunId: string | null; evaluationId: string | null; graphVersion: number | null; expectedOutputs: Record<string, unknown>; actualOutputs: Record<string, unknown> | null; decisions: DecisionEvaluation[]; errorCode: string | null; errorDetail: string | null; executedAt: string }
 export interface RegressionMatrix { run: MatrixRunSummary; selectedCaseIds: string[]; results: MatrixCaseResult[] }
+export interface DecisionVersionSummary { id: string; versionNumber: number; label: string; note: string | null; validationStatus: 'VALID' | 'INVALID'; fingerprint: string; sourceServiceVersion: number; sourceGraphVersion: number; capturedAt: string }
+export interface WorkingDecisionState { serviceVersion: number; graphVersion: number; validationStatus: 'VALID' | 'INVALID'; fingerprint: string }
+export type ChangeCategory = 'CONTRACT' | 'GRAPH' | 'IMPLEMENTATION' | 'TEST';
+export type ChangeImpact = 'BREAKING' | 'BEHAVIORAL' | 'NON_BREAKING';
+export interface SemanticChange { category: ChangeCategory; kind: 'ADDED' | 'REMOVED' | 'CHANGED'; impact: ChangeImpact; path: string; label: string; before: unknown | null; after: unknown | null }
+export interface DecisionVersionDiff { base: DecisionVersionSummary; target: DecisionVersionSummary; changes: SemanticChange[]; breakingCount: number; behavioralCount: number; nonBreakingCount: number }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -114,6 +120,10 @@ export const api = {
   regressionMatrices: (projectId: string, serviceId: string) => request<MatrixRunSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/regression-matrices`),
   regressionMatrix: (projectId: string, serviceId: string, runId: string) => request<RegressionMatrix>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/regression-matrices/${runId}`),
   runRegressionMatrix: (projectId: string, serviceId: string, testCaseIds: string[], clientRequestId = crypto.randomUUID()) => request<RegressionMatrix>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/regression-matrices`, { method: 'POST', body: JSON.stringify({ clientRequestId, testCaseIds }) }),
+  decisionVersions: (projectId: string, serviceId: string) => request<DecisionVersionSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions`),
+  workingDecisionVersion: (projectId: string, serviceId: string) => request<WorkingDecisionState>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions/working`),
+  captureDecisionVersion: (projectId: string, serviceId: string, body: { label: string; note: string; expectedServiceVersion: number; expectedGraphVersion: number; expectedFingerprint: string; clientRequestId?: string }) => request<DecisionVersionSummary>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions`, { method: 'POST', body: JSON.stringify({ ...body, clientRequestId: body.clientRequestId ?? crypto.randomUUID() }) }),
+  decisionVersionDiff: (projectId: string, serviceId: string, baseId: string, targetId: string) => request<DecisionVersionDiff>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/versions/diff?baseId=${baseId}&targetId=${targetId}`),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
