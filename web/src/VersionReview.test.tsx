@@ -22,7 +22,7 @@ describe('VersionReview', () => {
   afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
   it('captures an immutable baseline with current aggregate guards', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => init?.method === 'POST' ? response(baseline, 201) : String(input).endsWith('/working') ? response(working) : response([]));
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => init?.method === 'POST' ? response(baseline, 201) : String(input).endsWith('/working') ? response(working) : String(input).endsWith('/change-requests') ? response({ requests: [], promotion: null, accessRole: 'OWNER' }) : response([]));
     render(<VersionReview projectId="p1" service={service} graph={graph} canEdit onBack={() => undefined} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Capture baseline' }));
     await userEvent.type(screen.getByLabelText('Version label'), 'Baseline');
@@ -36,7 +36,7 @@ describe('VersionReview', () => {
   });
 
   it('compares versions and exposes categorized before/after evidence to viewers', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(input => String(input).includes('/diff?') ? response(diff) : String(input).endsWith('/working') ? response(working) : response([candidate, baseline]));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(input => String(input).includes('/diff?') ? response(diff) : String(input).endsWith('/working') ? response(working) : String(input).endsWith('/change-requests') ? response({ requests: [], promotion: null, accessRole: 'VIEWER' }) : response([candidate, baseline]));
     render(<VersionReview projectId="p1" service={service} graph={graph} canEdit={false} onBack={() => undefined} />);
     expect(await screen.findByText('Read-only review access. Owners and editors can capture the working decision.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Capture version' })).not.toBeInTheDocument();
