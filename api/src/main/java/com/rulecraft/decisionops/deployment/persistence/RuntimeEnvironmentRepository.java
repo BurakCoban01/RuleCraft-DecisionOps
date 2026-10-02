@@ -1,0 +1,3 @@
+package com.rulecraft.decisionops.deployment.persistence;
+import com.rulecraft.decisionops.deployment.domain.RuntimeEnvironment;import jakarta.persistence.LockModeType;import java.util.*;import org.springframework.data.jpa.repository.*;
+public interface RuntimeEnvironmentRepository extends JpaRepository<RuntimeEnvironment,UUID>{@Lock(LockModeType.PESSIMISTIC_WRITE)@Query("select environment from RuntimeEnvironment environment where environment.serviceId=:serviceId and environment.tenantId=:tenantId and environment.projectId=:projectId")Optional<RuntimeEnvironment> lockByService(UUID serviceId,UUID tenantId,UUID projectId);Optional<RuntimeEnvironment> findByServiceIdAndTenantIdAndProjectId(UUID serviceId,UUID tenantId,UUID projectId);}

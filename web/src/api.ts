@@ -59,6 +59,14 @@ export interface ChangeEvent { id: string; eventType: string; fromState: ChangeR
 export interface PromotionView { changeRequestId: string; decisionVersionId: string; decisionVersionNumber: number; decisionVersionLabel: string; promotedByName: string; promotedAt: string; revision: number }
 export interface ApprovalWorkflow { requests: ChangeRequestView[]; promotion: PromotionView | null; accessRole: string }
 export interface ChangeRequestDetail { request: ChangeRequestView; events: ChangeEvent[] }
+export type RuntimeDeploymentState = 'CREATED' | 'VALIDATING' | 'ACTIVE' | 'FAILED' | 'ROLLED_BACK' | 'RETIRED';
+export interface RuntimeVersion { id: string; versionNumber: number; label: string; fingerprint: string }
+export interface RuntimeEnvironment { id: string; environmentKey: string; name: string; activeDeploymentId: string | null; revision: number; updatedAt: string }
+export interface RuntimeDeployment { id: string; sequenceNumber: number; decisionVersionId: string; decisionVersionNumber: number | null; decisionVersionLabel: string; changeRequestId: string; state: RuntimeDeploymentState; artifactFingerprint: string; failureCode: string | null; failureDetail: string | null; deployedByName: string; createdAt: string; updatedAt: string; revision: number }
+export interface RuntimeDeploymentEvent { id: string; eventType: string; fromState: RuntimeDeploymentState | null; toState: RuntimeDeploymentState; actorName: string; note: string | null; createdAt: string }
+export interface RuntimeSandbox { environment: RuntimeEnvironment | null; deployments: RuntimeDeployment[]; promotedVersion: RuntimeVersion | null; promotionRevision: number | null; accessRole: string }
+export interface RuntimeDeploymentDetail { deployment: RuntimeDeployment; events: RuntimeDeploymentEvent[] }
+export interface RuntimeEvaluation { evaluationId: string; deploymentId: string; decisionVersionId: string; artifactFingerprint: string; outputs: Record<string, unknown>; decisions: { nodeKey: string; nodeName: string; implementation: 'TABLE' | 'EXPRESSION'; matchedRuleId: string | null; value: unknown }[] }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -134,6 +142,11 @@ export const api = {
   changeRequestDetail: (projectId: string, serviceId: string, requestId: string) => request<ChangeRequestDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests/${requestId}`),
   createChangeRequest: (projectId: string, serviceId: string, body: { decisionVersionId: string; title: string; summary: string; clientRequestId?: string }) => request<ChangeRequestView>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests`, { method: 'POST', body: JSON.stringify({ ...body, clientRequestId: body.clientRequestId ?? crypto.randomUUID() }) }),
   transitionChangeRequest: (projectId: string, serviceId: string, requestId: string, action: 'submit' | 'request-changes' | 'approve' | 'reject' | 'promote', expectedVersion: number, note: string, clientRequestId = crypto.randomUUID()) => request<ChangeRequestView>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/change-requests/${requestId}/${action}`, { method: 'POST', body: JSON.stringify({ clientRequestId, expectedVersion, note }) }),
+  runtimeSandbox: (projectId: string, serviceId: string) => request<RuntimeSandbox>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-sandbox`),
+  runtimeDeploymentDetail: (projectId: string, serviceId: string, deploymentId: string) => request<RuntimeDeploymentDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-sandbox/deployments/${deploymentId}`),
+  deployRuntimeVersion: (projectId: string, serviceId: string, decisionVersionId: string, expectedPromotionRevision: number, clientRequestId = crypto.randomUUID()) => request<RuntimeDeployment>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-sandbox/deployments`, { method: 'POST', body: JSON.stringify({ clientRequestId, decisionVersionId, expectedPromotionRevision }) }),
+  transitionRuntimeDeployment: (projectId: string, serviceId: string, deploymentId: string, action: 'retire' | 'rollback', expectedEnvironmentRevision: number, note: string, clientRequestId = crypto.randomUUID()) => request<RuntimeDeployment>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-sandbox/deployments/${deploymentId}/${action}`, { method: 'POST', body: JSON.stringify({ clientRequestId, expectedEnvironmentRevision, note }) }),
+  evaluateRuntimeDeployment: (projectId: string, serviceId: string, inputs: Record<string, unknown>) => request<RuntimeEvaluation>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-sandbox/evaluations`, { method: 'POST', body: JSON.stringify({ inputs }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
