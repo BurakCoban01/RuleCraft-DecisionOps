@@ -1,0 +1,1 @@
+package com.rulecraft.decisionops.decisionapi.security;import java.io.Serializable;import java.util.UUID;public record DecisionApiPrincipal(UUID credentialId,UUID tenantId,UUID projectId,UUID serviceId,String keyPrefix) implements Serializable{}
