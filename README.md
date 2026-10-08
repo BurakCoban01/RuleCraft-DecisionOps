@@ -4,7 +4,7 @@ A versioned business-rules and decision-management platform with a Java / Spring
 
 ## Implemented capabilities
 
-Platform foundation, identity and access, typed catalog, decision graph, decision tables, expression authoring, decision execution, test scenarios, regression matrices, version review, approval and promotion, runtime sandbox, decision api, explainability.
+Platform foundation, identity and access, typed catalog, decision graph, decision tables, expression authoring, decision execution, test scenarios, regression matrices, version review, approval and promotion, runtime sandbox, decision api, explainability, dependency impact.
 
 ## Local development
 
