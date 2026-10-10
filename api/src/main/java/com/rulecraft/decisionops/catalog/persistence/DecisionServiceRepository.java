@@ -16,5 +16,7 @@ public interface DecisionServiceRepository extends JpaRepository<DecisionService
     Optional<DecisionService> lockForVersionCapture(UUID id,UUID tenantId,UUID projectId);
     @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select service from DecisionService service where service.id=:id and service.tenantId=:tenantId and service.projectId=:projectId")
     Optional<DecisionService> lockForImpactCapture(UUID id,UUID tenantId,UUID projectId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select service from DecisionService service where service.id=:id and service.tenantId=:tenantId and service.projectId=:projectId")
+    Optional<DecisionService> lockForBenchmark(UUID id,UUID tenantId,UUID projectId);
     boolean existsByProjectIdAndServiceKey(UUID projectId,String serviceKey);
 }

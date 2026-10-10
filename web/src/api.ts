@@ -85,6 +85,14 @@ export interface ImpactSnapshot { serviceId: string; serviceKey: string; service
 export interface ImpactWorkspace { impact: ImpactSnapshot; canAssess: boolean; accessRole: string }
 export interface ImpactAssessmentSummary { id: string; sourceFingerprint: string; snapshotFingerprint: string; riskLevel: ImpactRisk; dependencyCount: number; findingCount: number; blockerCount: number; capturedByName: string; capturedAt: string }
 export interface ImpactAssessmentDetail { assessment: ImpactAssessmentSummary; impact: ImpactSnapshot }
+export type AnalyticsWindow = 'HOURS_24' | 'DAYS_7' | 'DAYS_30';
+export interface AnalyticsTimeBucket { start: string; end: string; count: number; failedCount: number; p95Micros: number }
+export interface AnalyticsChannelStat { channel: TraceChannel; count: number; succeededCount: number; failedCount: number; p95Micros: number }
+export interface AnalyticsErrorStat { code: string; count: number }
+export interface AnalyticsSnapshot { window: AnalyticsWindow; channel: TraceChannel | 'ALL'; from: string; to: string; latestEventAt: string | null; analyzedCount: number; totalAvailable: number; truncated: boolean; succeededCount: number; failedCount: number; successRate: number; meanMicros: number; p50Micros: number; p95Micros: number; p99Micros: number; maxMicros: number; bucketGrain: 'HOURLY' | 'SIX_HOURLY' | 'DAILY'; buckets: AnalyticsTimeBucket[]; channels: AnalyticsChannelStat[]; errors: AnalyticsErrorStat[] }
+export interface AnalyticsActiveArtifact { deploymentId: string; sequenceNumber: number; decisionVersionId: string; artifactFingerprint: string }
+export interface RuntimeBenchmark { id: string; deploymentId: string; decisionVersionId: string; artifactFingerprint: string; inputFingerprint: string; outputFingerprint: string; iterations: number; warmupIterations: number; totalDurationMicros: number; minMicros: number; meanMicros: number; p50Micros: number; p95Micros: number; p99Micros: number; maxMicros: number; throughputPerSecond: number; capturedByName: string; capturedAt: string }
+export interface RuntimeAnalyticsWorkspace { serviceKey: string; serviceName: string; analytics: AnalyticsSnapshot; activeArtifact: AnalyticsActiveArtifact | null; benchmarks: RuntimeBenchmark[]; canBenchmark: boolean; accessRole: string }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -176,6 +184,8 @@ export const api = {
   impactAssessments: (projectId: string, serviceId: string) => request<ImpactAssessmentSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/dependency-impact/assessments`),
   captureImpactAssessment: (projectId: string, serviceId: string, expectedFingerprint: string) => request<ImpactAssessmentDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/dependency-impact/assessments`, { method: 'POST', body: JSON.stringify({ clientRequestId: crypto.randomUUID(), expectedFingerprint }) }),
   impactAssessment: (projectId: string, serviceId: string, assessmentId: string) => request<ImpactAssessmentDetail>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/dependency-impact/assessments/${assessmentId}`),
+  runtimeAnalytics: (projectId: string, serviceId: string, window: AnalyticsWindow, channel: TraceChannel | 'ALL') => request<RuntimeAnalyticsWorkspace>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-analytics?window=${window}&channel=${channel}`),
+  runRuntimeBenchmark: (projectId: string, serviceId: string, expectedDeploymentId: string, iterations: number, warmupIterations: number, inputs: Record<string, unknown>, clientRequestId = crypto.randomUUID()) => request<RuntimeBenchmark>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/runtime-analytics/benchmarks`, { method: 'POST', body: JSON.stringify({ clientRequestId, expectedDeploymentId, iterations, warmupIterations, inputs }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
