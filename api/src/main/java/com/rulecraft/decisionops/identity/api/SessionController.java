@@ -6,6 +6,7 @@ import com.rulecraft.decisionops.identity.persistence.UserAccountRepository;
 import com.rulecraft.decisionops.identity.security.RuleCraftPrincipal;
 import com.rulecraft.decisionops.identity.security.RuleCraftUserDetailsService;
 import com.rulecraft.decisionops.platform.web.DomainProblemException;
+import com.rulecraft.decisionops.platform.security.AbuseProtectionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -42,14 +43,16 @@ public class SessionController {
     private final UserAccountRepository users;
     private final PasswordEncoder passwordEncoder;
     private final AuditService audit;
+    private final AbuseProtectionService abuseProtection;
     private final Clock clock;
 
     public SessionController(AuthenticationManager authenticationManager, UserAccountRepository users,
-            PasswordEncoder passwordEncoder, AuditService audit, Clock clock) {
+            PasswordEncoder passwordEncoder, AuditService audit, AbuseProtectionService abuseProtection, Clock clock) {
         this.authenticationManager = authenticationManager;
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.audit = audit;
+        this.abuseProtection = abuseProtection;
         this.clock = clock;
     }
 
@@ -65,6 +68,8 @@ public class SessionController {
     @PostMapping("/login")
     SessionResponse login(@Valid @RequestBody LoginRequest body, HttpServletRequest request,
             HttpServletResponse response) {
+        var rateKey = abuseProtection.loginKey(body.workspace(), body.email(), request.getRemoteAddr());
+        abuseProtection.requireLoginAllowed(rateKey);
         try {
             var token = UsernamePasswordAuthenticationToken.unauthenticated(
                     body.workspace().strip().toLowerCase(Locale.ROOT) + RuleCraftUserDetailsService.SEPARATOR + body.email(),
@@ -77,9 +82,11 @@ public class SessionController {
             request.changeSessionId();
             contextRepository.saveContext(context, request, response);
             var principal = (RuleCraftPrincipal) authentication.getPrincipal();
+            abuseProtection.loginSucceeded(rateKey);
             audit.record(principal.tenantId(), principal.userId(), "SESSION_LOGIN", "USER", principal.userId(), Map.of());
             return SessionResponse.authenticated(principal);
         } catch (org.springframework.security.core.AuthenticationException exception) {
+            abuseProtection.loginFailed(rateKey);
             throw new DomainProblemException(HttpStatus.UNAUTHORIZED, "RC-AUTH-INVALID",
                     "The workspace, email, or password is incorrect.");
         }
