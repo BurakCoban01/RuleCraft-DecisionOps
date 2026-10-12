@@ -59,6 +59,24 @@ public class ProjectAccessPolicy {
         return project;
     }
 
+    public Project requireGovernance(RuleCraftPrincipal actor, UUID projectId) {
+        var project = requireVisible(actor, projectId);
+        if (actor.tenantRole() == TenantRole.ADMIN) return project;
+        var role = membershipRole(actor, projectId);
+        if (role != ProjectRole.OWNER && role != ProjectRole.EDITOR && role != ProjectRole.REVIEWER) {
+            throw new DomainProblemException(HttpStatus.FORBIDDEN, "RC-PROJECT-GOVERNANCE-FORBIDDEN",
+                    "Project author or reviewer permission is required to capture impact evidence.");
+        }
+        return project;
+    }
+
+    public boolean canGovern(RuleCraftPrincipal actor, UUID projectId) {
+        requireVisible(actor, projectId);
+        if (actor.tenantRole() == TenantRole.ADMIN) return true;
+        var role = membershipRole(actor, projectId);
+        return role == ProjectRole.OWNER || role == ProjectRole.EDITOR || role == ProjectRole.REVIEWER;
+    }
+
     public Project lockForManage(RuleCraftPrincipal actor, UUID projectId) {
         var project = projects.lockByIdAndTenantId(projectId, actor.tenantId()).orElseGet(() -> notFound());
         if (actor.tenantRole() == TenantRole.ADMIN) return project;
