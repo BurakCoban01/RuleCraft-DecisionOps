@@ -1,0 +1,9 @@
+node_modules
+dist
+playwright-report
+test-results
+.git
+*.log
+e2e
+src/**/*.test.ts
+src/**/*.test.tsx
