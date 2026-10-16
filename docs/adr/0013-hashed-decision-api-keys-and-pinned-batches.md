@@ -22,4 +22,4 @@ runtime sandbox provides an authenticated local runtime sandbox but no machine-t
 
 Integrations can safely retry after timeouts and can prove exactly which immutable artifact produced a result. Key compromise is contained to one service and can be revoked without changing user sessions. Batch partial failure is explicit and correlated rather than all-or-nothing.
 
-decision API does not create an externally deployed endpoint, environment routing, traffic policy, asynchronous jobs, general rate-limiting infrastructure, or long-term trace analytics. Later security and observability phases own those cross-cutting controls.
+The Decision API does not provision external endpoints, environment routing, asynchronous jobs, or a general traffic-policy system. Security and observability services provide bounded local controls; shared ingress limits, long-term monitoring, and external exposure remain deployment responsibilities.

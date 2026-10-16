@@ -21,4 +21,4 @@ RuleCraft already retains typed contracts, graph implementations, test and regre
 
 Authors and reviewers can inspect and export the blast radius, preserve the evidence used during review, and later distinguish that snapshot from the current model. The existing approval workflow remains the sole authority for promotion.
 
-dependency impact does not implement cross-service dependency discovery, automated promotion blocking, retention policy, legal hold, external graph storage, or portfolio analytics. Runtime analytics and broader governance automation remain later-phase work.
+Dependency impact does not implement cross-service discovery, automated promotion blocking, retention policy, legal hold, external graph storage, or portfolio analytics. Runtime analytics is a separate trace-derived service; broader governance automation requires its own contract.

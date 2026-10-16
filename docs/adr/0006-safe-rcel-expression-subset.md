@@ -9,7 +9,7 @@ Typed decision nodes need an expression implementation that can be validated now
 
 ## Decision
 
-RuleCraft defines `RCEL-1`, a documented DMN/FEEL-inspired subset parsed and type-checked by owned Java code. expression authoring validates and persists expressions but does not execute them.
+RuleCraft defines `RCEL-1`, a documented DMN/FEEL-inspired subset parsed, type-checked, and evaluated by owned Java code. Authoring validation and runtime execution share the parser and its resource boundaries.
 
 The grammar supports:
 
@@ -21,10 +21,10 @@ The grammar supports:
 
 Typing is exact and deterministic. Arithmetic is numeric; boolean operators require booleans; ordered comparisons support numbers, dates, and offset date-times; conditional branches must share a type; the final type must match the decision output. Enum comparison/result literals must be valid stored keys. Object fields resolve only through persisted project type definitions.
 
-The parser enforces 12,000 source characters, 2,048 tokens, and 64 expression nesting levels. Unknown characters, names, fields, functions, arity, operators, escapes, and type combinations produce stable line/column diagnostics. There is no reflection, method dispatch, host object access, loops, assignment, mutation, I/O, network, process, environment, filesystem, dynamic loading, or general function registration.
+The parser enforces 12,000 source characters, 2,048 tokens, and 64 expression/AST nesting levels, including unary chains and left-deep binary trees. An iterative depth check runs before recursive type checking or evaluation. Unknown characters, names, fields, functions, arity, operators, escapes, and type combinations produce stable line/column diagnostics. There is no reflection, method dispatch, host object access, loops, assignment, mutation, I/O, network, process, environment, filesystem, dynamic loading, or general function registration.
 
 Each decision node may have a table or expression, never both. Both implementation kinds have explicit version-guarded, audited removal commands so an authorized author can deliberately switch. Expression validity is recomputed against the current graph interface on reads and summaries.
 
 ## Consequences
 
-decision execution can evaluate a small, frozen AST with bounded semantics instead of interpreting arbitrary code. Invalid drafts remain persistable and actionable. RCEL-1 is intentionally not full FEEL or DMN conformance; grammar changes require a new language version and compatibility decision.
+Decision execution evaluates a small, frozen AST with bounded semantics instead of interpreting arbitrary code. Invalid drafts remain persistable and actionable. RCEL-1 is intentionally not full FEEL or DMN conformance; grammar changes require a new language version and compatibility decision.

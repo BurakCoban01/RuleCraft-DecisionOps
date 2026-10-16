@@ -22,4 +22,4 @@ version review provides immutable decision versions but deliberately has no revi
 
 runtime sandbox can require an explicit promoted immutable baseline before creating a runtime deployment, while approval and promotion remains usable without infrastructure profiles or a worker. Actor, note, timestamp, transition, version, and audit evidence survive reload and later promotions.
 
-Rollback, deployment activation, environment health, and artifact execution remain later-phase responsibilities. A future rollback must create explicit new history rather than mutate an earlier promotion.
+Rollback, artifact activation, environment health, and captured execution use the runtime deployment boundary. Rollback creates an explicit new history event rather than mutating an earlier promotion.

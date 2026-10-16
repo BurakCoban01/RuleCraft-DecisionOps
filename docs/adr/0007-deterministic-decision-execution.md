@@ -25,6 +25,6 @@ The decision execution sandbox stores no evaluation aggregate. Each call receive
 
 ## Consequences
 
-Identical saved versions and inputs have deterministic semantics without an external engine or host-runtime escape surface. Later scenario and trace phases can persist selected requests/results around this core without duplicating evaluation logic. Synchronous execution remains bounded by the existing graph, rule, source, token, and nesting limits. Durable execution history, idempotency keys, batch scheduling, deployed-version selection, and runtime isolation remain explicit later-phase work.
+Identical saved versions and inputs have deterministic semantics without an external engine or host-runtime escape surface. Scenario and trace services persist selected evidence around this core. Synchronous execution remains bounded by graph, rule, source, token, and AST-depth limits. Durable request history, idempotency, captured-artifact selection, and machine authentication have explicit runtime/API contracts; background batch scheduling is not implemented.
 
 No new infrastructure or schema is required for decision execution. The engine reuses PostgreSQL-backed authored state and the existing audit boundary, avoiding additional memory, disk, broker, or container cost on the constrained development host.

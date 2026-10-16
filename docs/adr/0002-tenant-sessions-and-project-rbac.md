@@ -20,4 +20,4 @@ RuleCraft needs private multi-tenant identity and project boundaries before deci
 
 ## Consequences
 
-The API performs an account-status lookup on authenticated requests so disabling an account takes effect on its next request. Project and user queries must always carry tenant scope. Session cleanup, federated identity, MFA, recovery, cluster-wide login throttling, and expanded audit browsing remain security-hardening work for operational security; this design does not claim those capabilities.
+The API performs an account-status lookup on authenticated requests so disabling an account takes effect on its next request. Project and user queries always carry tenant scope. Operational controls provide process-local login limits and bounded recovery; federated identity, MFA, shared multi-replica throttling, and a general audit-search product are not implemented. See the current [security boundaries](../../SECURITY.md).

@@ -6,7 +6,7 @@ RuleCraft provides tenant administrators with an Operations workspace at `/admin
 
 - `DATABASE` verifies an authoritative database query.
 - `SCHEMA` compares the latest successful Flyway version with the application’s expected version.
-- `REGRESSION_RECOVERY` identifies tenant-owned matrix runs still marked `RUNNING` after their worker is gone.
+- `REGRESSION_RECOVERY` identifies tenant-owned matrix runs still marked `RUNNING`.
 - `RUNTIME_POINTERS` identifies an environment whose active pointer does not resolve to an active deployment for the same tenant, project, and service.
 
 `READY` means every check passes. Any failure or recoverable warning produces `DEGRADED`. The displayed fingerprint covers the schema and repair-relevant counts, so an administrator can export and compare evidence without exposing decision inputs, outputs, credentials, or session data.
@@ -19,7 +19,7 @@ RuleCraft provides tenant administrators with an Operations workspace at `/admin
 4. If the posture changed, refresh and inspect the new state before retrying.
 5. Confirm the resulting `READY` or `DEGRADED` status and immutable recovery-history entry.
 
-The scan only interrupts abandoned tenant matrix runs and clears invalid active runtime pointers. It preserves decision versions, deployment attempts and history, traces, audits, scenarios, approvals, and authoring data. Reusing the same request ID with the same source posture returns the original result; changed reuse is rejected. Recovery history is bounded to 1,000 records per tenant and the UI shows the newest 25.
+The scan interrupts tenant matrix runs marked `RUNNING` and clears invalid active runtime pointers. Operators must coordinate with active work first: the application does not maintain distributed worker leases. It preserves decision versions, deployment attempts and history, traces, audits, scenarios, approvals, and authoring data. Reusing the same request ID with the same source posture returns the original result; changed reuse is rejected. Recovery history is bounded to 1,000 records per tenant and the UI shows the newest 25.
 
 ## Security boundary
 

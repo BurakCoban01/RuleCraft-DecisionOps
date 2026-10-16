@@ -33,4 +33,4 @@ The workbench sample can be edited as JSON and is useful for integration smoke t
 
 ## Operational boundary
 
-These routes are local application contracts and do not publish RuleCraft to the internet. decision API provides synchronous single and batch evaluation against the one active sandbox deployment. External exposure, environment routing, asynchronous batch jobs, traffic controls, and production observability remain later-phase concerns.
+The Decision API provides synchronous single and batch evaluation against the active immutable sandbox artifact. Trace retrieval and operational analytics use persisted evidence; process-local rate controls are bounded. External exposure, shared ingress limits, environment routing, asynchronous jobs, and external monitoring are deployment responsibilities, not effects of creating an API credential.
