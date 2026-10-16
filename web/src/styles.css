@@ -758,6 +758,12 @@ input::placeholder { color: var(--ink-muted); }
 .pipeline-stages { margin-block: .8rem; }
 .approval-pipeline { container-type: inline-size; }
 .runtime-workbench { container-type: inline-size; }
+.graph-workbench { container-type: inline-size; }
+@container (max-width: 65rem) {
+  .graph-layout { grid-template-columns: minmax(0,1fr); }
+  .graph-inspector { grid-template-columns: minmax(0,1fr); }
+  .graph-inspector label,.graph-inspector input,.graph-inspector select { min-inline-size: 0; max-inline-size: 100%; }
+}
 @container (max-width: 65rem) {
   .runtime-layout,.runtime-evaluation-grid,.api-console-grid,.trace-layout,.deployment-facts { grid-template-columns: minmax(0,1fr); }
   .runtime-heading,.deployment-title,.runtime-evaluation-heading,.api-console-heading,.trace-heading,.trace-title,.trace-privacy { flex-direction: column; align-items: flex-start; }
