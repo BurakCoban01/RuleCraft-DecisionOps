@@ -19,4 +19,4 @@ Decision graphs, tables, expressions, tests, and runtime evaluation need one sha
 
 ## Consequences
 
-PostgreSQL can enforce referential integrity and subsequent extensions can query dependencies without parsing documents. Aggregate replacement keeps field ordering deterministic. Type/version history, semantic diff, graph nodes, runtime validation, and dependency-impact visualization are intentionally layered in decision graph/version review/dependency impact rather than being simulated in typed catalog.
+PostgreSQL enforces referential integrity and permits dependency queries without parsing documents. Aggregate replacement keeps field ordering deterministic. The graph, runtime, immutable version, semantic-diff, and dependency-impact services build on these type identities; the catalog remains responsible for the mutable type contract.

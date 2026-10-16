@@ -22,4 +22,4 @@ RuleCraft already has tenant isolation, governed immutable artifacts, durable re
 
 Administrators can distinguish authoritative readiness from recoverable degradation, perform a narrow idempotent repair, export posture evidence, and verify the result after reload. Existing governed history remains immutable and tenant isolation is preserved.
 
-operational security does not add external observability infrastructure, distributed rate-limit coordination, automatic destructive repair, backup orchestration, alert routing, or deployment. container readiness owns deployment-ready configuration and operator packaging; release acceptance owns final acceptance.
+Operational controls do not provide external observability infrastructure, distributed rate-limit coordination, automatic destructive repair, backup scheduling, alert routing, or hosted deployment. Container configuration, backup/restore commands, and verification scripts support an operator-controlled rehearsal. Recovery does not use distributed worker leases, so an administrator must coordinate with active regression work before interrupting runs.

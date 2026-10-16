@@ -5,7 +5,7 @@
 
 ## Context
 
-Decision-service contracts from typed catalog need a persisted authoring graph that later decision tables, expressions, execution, versioning, and governance can reference. The graph must preserve project type identity, prevent ambiguous or cyclic dependencies, tolerate incomplete drafting, and remain recoverable when the service contract changes.
+Typed decision-service contracts need a persisted authoring graph that tables, expressions, execution, versioning, and governance can reference. The graph must preserve project type identity, prevent ambiguous or cyclic dependencies, tolerate incomplete drafting, and remain recoverable when the service contract changes.
 
 ## Decision
 

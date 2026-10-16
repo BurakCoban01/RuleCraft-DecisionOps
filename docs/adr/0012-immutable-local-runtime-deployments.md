@@ -16,7 +16,7 @@ approval and promotion identifies one governed immutable version, but promotion 
 - Deploy commands require the exact current promotion revision and decision-version ID, serialize on the service/environment boundary, reject archived services and invalid/unpromoted versions, and use a client request UUID for retry-safe creation.
 - Runtime evaluation reads only the artifact JSON stored on the active deployment. It uses the captured contract, types, graph topology, rule order, hit policy, and RCEL source; it never resolves the mutable working graph or implementations. Inputs and outputs are checked against captured types with bounded depth, collection, string, and node budgets.
 - Every state transition is append-only actor evidence and every activation, failure, retirement, rollback, and evaluation is audited. Failure details are bounded and user-safe.
-- runtime sandbox exposes only authenticated project-scoped management and evaluation routes. Public decision endpoints, batch evaluation, external environment provisioning, traffic routing, and deployment are reserved for subsequent extensions.
+- The runtime sandbox exposes authenticated project-scoped management and evaluation routes. Scoped machine endpoints and batch evaluation use the separate Decision API contract. External environment provisioning, rollout traffic routing, and hosted deployment are not implemented.
 
 ## Consequences
 

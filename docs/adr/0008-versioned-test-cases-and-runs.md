@@ -6,7 +6,7 @@ Accepted — 2026-08-29
 
 ## Context
 
-Decision authors need durable examples that remain governed with their service contract and can expose behavioral changes before regression matrices adds matrix execution. Storing only ad hoc sandbox responses would lose expected outcomes and authorship; storing mutable “latest result” fields on a case would erase the version context needed for later regression and review work.
+Decision authors need durable examples that remain governed with their service contract and expose behavioral changes individually or through a regression matrix. Storing only ad hoc sandbox responses would lose expected outcomes and authorship; storing mutable “latest result” fields on a case would erase the version context needed for regression and review.
 
 ## Decision
 
@@ -23,6 +23,6 @@ Deleting a case cascades to its runs. Test runs are not edited or deleted indepe
 
 ## Consequences
 
-Authors can recover cases after contract evolution and reviewers can distinguish expectation mismatch from invalid test data. Immutable versions make later matrix, diff, and approval features possible without inventing historical context. PostgreSQL remains the only added runtime resource; no worker, queue, cache, or object store is required.
+Authors can recover cases after contract evolution and reviewers can distinguish expectation mismatch from invalid test data. Immutable results retain the historical context used by matrices and review. PostgreSQL remains the only durable runtime dependency; no worker, queue, cache, or object store is required.
 
-test scenarios does not persist engine exceptions as completed runs and does not claim suite scheduling, baseline pinning, bulk simulation, retries, or idempotent execution. Those require explicit contracts in subsequent extensions.
+Individual scenario runs do not persist engine exceptions as completed runs and do not provide scheduling or baseline pinning. Bounded bulk selection, checkpointing, interruption recovery, and idempotent matrix requests belong to the separate regression-matrix contract.
