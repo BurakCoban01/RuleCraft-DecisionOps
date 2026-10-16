@@ -1,5 +1,6 @@
 package com.rulecraft.decisionops.tables;
 
+import com.rulecraft.decisionops.runtime.types.TypedValueEquality;
 import com.rulecraft.decisionops.audit.AuditService;
 import com.rulecraft.decisionops.catalog.CatalogService;
 import com.rulecraft.decisionops.catalog.domain.*;
@@ -102,7 +103,7 @@ public class DecisionTableService {
     }
     private boolean overlap(RuleCommand left,RuleCommand right){var rightByPort=right.inputs().stream().collect(Collectors.toMap(InputEntryCommand::inputPortId,Function.identity()));
         for(var entry:left.inputs()){var other=rightByPort.get(entry.inputPortId());if(entry.operator()==InputOperator.ANY||other.operator()==InputOperator.ANY)continue;
-            var a=parse(entry.valueJson());var b=parse(other.valueJson());if(a==null||b==null||!a.equals(b))return false;}return true;}
+            var a=parse(entry.valueJson());var b=parse(other.valueJson());if(a==null||b==null||!TypedValueEquality.equal(a,b))return false;}return true;}
     private boolean validJson(String raw,TypeRefCommand ref){var node=parse(raw);return node!=null&&ref!=null&&typedValues.valid(node,ref.builtinType(),ref.customTypeId());}
     private JsonNode parse(String raw){if(raw==null||raw.isBlank())return null;try{return mapper.readTree(raw);}catch(JacksonException exception){return null;}}
     private TableView view(DecisionTableDefinition table,Context context){var persistedRules=rules.findAllByDecisionTableIdOrderByPositionAsc(table.getId());var byRule=entries.findAllByDecisionTableId(table.getId()).stream().collect(Collectors.groupingBy(DecisionTableInputEntry::getRuleId));
