@@ -1,0 +1,21 @@
+# Decision graph modeler
+
+The decision graph is opened from a decision service at `/projects/{projectId}/services/{serviceId}/graph`. It is a persisted, project-authorized workbench rather than a diagram-only view.
+
+## Authoring model
+
+- Initialize a graph from the service's typed input and output contract.
+- Add decision nodes with ordered typed input ports and one typed result.
+- Connect only type-compatible output and input ports. Each input accepts one source.
+- Position decisions by pointer drag or keyboard-accessible nudge controls.
+- Save incomplete work and use the validation inspector to resolve required connections, missing decisions, and orphan nodes.
+- Edit or remove decision nodes; connections touching removed or type-changed ports are removed locally before save.
+- Synchronize contract nodes after a service-schema change. Decision nodes and their internal links remain; affected boundary connections must be re-established.
+
+Owners, editors, and workspace administrators can author active services. Reviewers and viewers receive the same persisted graph as a read-only view. Archived services are readable but cannot be changed.
+
+## Safety and recovery
+
+Graph saves are version guarded. A stale editor receives a refresh action instead of overwriting another author's work. The API rejects foreign project types, contract-node tampering, cycles, type mismatches, duplicate keys or ids, multiple incoming links, oversized aggregates, and coordinates outside the bounded workspace. Empty, loading, unavailable, invalid, stale, permission, archived, success, and contract-drift states are explicit.
+
+decision graph defines structure and typed dependencies only. Decision-table configuration, expressions, evaluation, test scenarios, version diff, and promotion do not yet exist.
