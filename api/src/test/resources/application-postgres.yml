@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: ${RULECRAFT_TEST_DB_URL:jdbc:postgresql://127.0.0.1:50112/rulecraft_test}
+    username: ${RULECRAFT_TEST_DB_USER:rulecraft}
+    password: ${RULECRAFT_TEST_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver

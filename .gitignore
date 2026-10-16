@@ -24,3 +24,7 @@ backups/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Python verification tools
+__pycache__/
+*.pyc
