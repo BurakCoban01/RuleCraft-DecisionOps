@@ -12,7 +12,11 @@ web/test-results/
 .tools/
 .env
 .env.local
+.env.*
+!.env.example
+!.env.production.example
 *.log
+backups/
 
 # IDE / OS
 .idea/
@@ -20,3 +24,7 @@ web/test-results/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Python verification tools
+__pycache__/
+*.pyc

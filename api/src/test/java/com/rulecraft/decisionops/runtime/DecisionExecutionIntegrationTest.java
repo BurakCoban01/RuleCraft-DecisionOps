@@ -84,6 +84,32 @@ class DecisionExecutionIntegrationTest {
         assertCode("RC-EXEC-NO-MATCH",()->executions.evaluate(admin,fixture.projectId(),fixture.serviceId(),command("500")));
     }
 
+    @Test void numericTableMatchingTreatsEquivalentNumberRepresentationsEqually(){
+        var fixture=fixture();var graph=graphs.get(admin,fixture.projectId(),fixture.serviceId());
+        var nodes=graph.nodes().stream().map(node->{
+            var ports=node.ports().stream().map(port->{
+                var numeric=node.id().equals(fixture.thresholdNodeId())&&port.direction()==GraphPortDirection.OUTPUT
+                        ||node.id().equals(fixture.outcomeNodeId())&&port.direction()==GraphPortDirection.INPUT;
+                return new PortCommand(port.id(),port.direction(),port.portKey(),port.label(),
+                        numeric?new DecisionGraphService.TypeRefCommand(BuiltinType.NUMBER,null):port.type(),
+                        port.required(),port.position());
+            }).toList();
+            return new NodeCommand(node.id(),node.nodeKey(),node.name(),node.kind(),node.serviceFieldKey(),
+                    node.positionX(),node.positionY(),ports);
+        }).toList();
+        graphs.update(admin,fixture.projectId(),fixture.serviceId(),new GraphCommand(graph.version(),nodes,
+                graph.edges().stream().map(edge->new EdgeCommand(edge.id(),edge.sourcePortId(),edge.targetPortId())).toList()));
+        var expression=expressions.find(admin,fixture.projectId(),fixture.serviceId(),fixture.thresholdNodeId()).orElseThrow();
+        expressions.update(admin,fixture.projectId(),fixture.serviceId(),fixture.thresholdNodeId(),
+                new ExpressionCommand(expression.version(),"score"));
+        var table=tables.find(admin,fixture.projectId(),fixture.serviceId(),fixture.outcomeNodeId()).orElseThrow();
+        tables.update(admin,fixture.projectId(),fixture.serviceId(),fixture.outcomeNodeId(),new TableCommand(
+                table.version(),HitPolicy.FIRST,List.of(equalsRule(fixture.approvedPortId(),"700","\"APPROVE\""),
+                        anyRule(fixture.approvedPortId(),"\"DECLINE\""))));
+        assertThat(executions.evaluate(admin,fixture.projectId(),fixture.serviceId(),command("700.0"))
+                .outputs().get("decision").asString()).isEqualTo("APPROVE");
+    }
+
     @Test void viewerCanEvaluateAndOutsiderCannotDiscoverProject(){
         var fixture=fixture();var now=Instant.now(clock);
         var viewerAccount=users.save(new UserAccount(admin.tenantId(),"runtime-viewer"+UUID.randomUUID()+"@example.test","Rita Runtime Viewer",passwordEncoder.encode("CorrectHorseBattery90!"),TenantRole.MEMBER,now));

@@ -63,6 +63,15 @@ class DecisionTableIntegrationTest {
         assertCode("RC-TABLE-STALE",()->tables.update(admin,fixture.projectId(),fixture.serviceId(),fixture.nodeId(),new TableCommand(saved.version(),HitPolicy.FIRST,List.of())));
     }
 
+    @Test void equivalentNumericRulesAreReportedAsUniqueOverlap(){
+        var fixture=fixture();var table=tables.initialize(admin,fixture.projectId(),fixture.serviceId(),fixture.nodeId());
+        var saved=tables.update(admin,fixture.projectId(),fixture.serviceId(),fixture.nodeId(),
+                new TableCommand(table.version(),HitPolicy.UNIQUE,List.of(
+                        rule(fixture.inputPortId(),"700","true"),rule(fixture.inputPortId(),"700.0","false"))));
+        assertThat(saved.validationStatus()).isEqualTo(TableValidationStatus.INVALID);
+        assertThat(saved.issues()).extracting(TableIssue::code).contains("RC-TABLE-UNIQUE-OVERLAP");
+    }
+
     @Test void viewerCanReadButCannotAuthorTable(){
         var fixture=fixture();var table=tables.initialize(admin,fixture.projectId(),fixture.serviceId(),fixture.nodeId());var now=Instant.now(clock);
         var account=users.save(new UserAccount(admin.tenantId(),"table-viewer"+UUID.randomUUID()+"@example.test","Tara Table Viewer",passwordEncoder.encode("CorrectHorseBattery56!"),TenantRole.MEMBER,now));

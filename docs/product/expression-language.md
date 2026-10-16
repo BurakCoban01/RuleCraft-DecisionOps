@@ -33,4 +33,4 @@ Valid RCEL-1 expressions execute only through RuleCraft's owned AST evaluator. I
 
 ## Security boundary
 
-RCEL-1 has no host-language calls, methods, assignment, loops, reflection, filesystem, environment, process, network, I/O, or side effects. Unknown functions are rejected. Source, token, and nesting bounds protect validation resources. expression authoring validates only; deterministic evaluation and runtime error behavior are introduced in decision execution.
+RCEL-1 has no host-language calls, methods, assignment, loops, reflection, filesystem, environment, process, network, I/O, or side effects. Unknown functions are rejected. Source, token, and AST-depth bounds apply to authoring and captured execution. See the [language reference](../expression-language.md) for the complete supported operators, functions, and limits.

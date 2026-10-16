@@ -22,4 +22,4 @@ Each decision node may own at most one relational decision-table aggregate:
 
 ## Consequences
 
-Later execution can consume deterministic ordered rules without inferring column meaning. Authors can preserve invalid drafts and recover from input evolution. The supported semantics are deliberately smaller than DMN: decision tables does not claim full DMN/FEEL conformance, expression rules, execution, version history, or promotion.
+Execution consumes deterministic ordered rules without inferring column meaning. Authors can preserve invalid drafts and recover from input evolution. The supported table semantics are deliberately smaller than DMN: only `ANY` / `EQUALS` entries and `UNIQUE` / `FIRST` policies are implemented. Expressions use a separate implementation kind; execution, immutable version history, and promotion govern the surrounding service lifecycle.

@@ -6,7 +6,7 @@ RuleCraft opens with a private workspace sign-in using a workspace handle, email
 
 - Workspace administrators provision and disable accounts, create projects, and administer every project in their tenant.
 - Workspace members can create projects and become owners of what they create.
-- Project owners manage membership. Editors, reviewers, and viewers receive progressively narrower authoring permissions as later decision capabilities arrive.
+- Project owners manage membership. Editors author decisions; reviewers inspect assurance evidence and participate in review; viewers inspect the project without mutation rights. Server-side access policies enforce each operation independently.
 
 Tenant context is established by the authenticated session, not by editable UI fields or request payloads. Cross-tenant project identifiers return the same not-found response as missing projects.
 

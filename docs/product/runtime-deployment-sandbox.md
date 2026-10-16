@@ -27,4 +27,4 @@ Working-copy edits do not affect this result. A behavior change reaches the runt
 
 ## Boundary
 
-runtime sandbox is an authenticated, project-scoped local runtime environment. It does not create a public decision API, batch endpoint, external deployment, traffic route, secret, or infrastructure resource. Public API and batch evaluation begin in decision API.
+The runtime sandbox is an authenticated, project-scoped local runtime environment. It activates a governed artifact without provisioning infrastructure. The separate [Decision API](decision-api-and-batch-evaluation.md) exposes scoped single/batch evaluation; creating an artifact or credential does not publish an external endpoint.

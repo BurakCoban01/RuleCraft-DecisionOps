@@ -5,7 +5,7 @@
 
 ## Context
 
-Decision-service contracts from typed catalog need a persisted authoring graph that later decision tables, expressions, execution, versioning, and governance can reference. The graph must preserve project type identity, prevent ambiguous or cyclic dependencies, tolerate incomplete drafting, and remain recoverable when the service contract changes.
+Typed decision-service contracts need a persisted authoring graph that tables, expressions, execution, versioning, and governance can reference. The graph must preserve project type identity, prevent ambiguous or cyclic dependencies, tolerate incomplete drafting, and remain recoverable when the service contract changes.
 
 ## Decision
 
@@ -21,4 +21,4 @@ Each decision service owns at most one `decision_graph` aggregate. Its relationa
 
 ## Consequences
 
-The runtime can traverse a deterministic typed DAG without inferring port meaning. Draft authoring remains possible before a graph is executable. Service-schema evolution is visible and recoverable, but synchronization deliberately requires reconnection of affected contract edges. Full decision semantics, table hit policies, expressions, execution, and version history remain later-phase concerns.
+The runtime can traverse a deterministic typed DAG without inferring port meaning. Draft authoring remains possible before a graph is executable. Service-schema evolution is visible and recoverable, but synchronization deliberately requires reconnection of affected contract edges. Table/expression semantics, execution, and immutable history are separate services built on these stable node and port identities.

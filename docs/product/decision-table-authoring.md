@@ -21,4 +21,4 @@ Table saves are version guarded. A stale editor must reload instead of overwriti
 
 If the decision gains an input, existing rows receive a recoverable `ANY` cell and the table reports schema drift until an author reviews and saves it. Navigation warns before discarding unsaved table changes. Loading, missing, invalid, stale, unavailable, permission, archived, success, and read-only states are explicit.
 
-decision tables supports `ANY` and typed `EQUALS` with `UNIQUE` and `FIRST`. Comparisons, expression rules, safe FEEL-like syntax, evaluation, scenarios, semantic diff, and promotion arrive in subsequent extensions.
+Tables support `ANY` and typed `EQUALS` with `UNIQUE` and `FIRST`. Numeric equality ignores representation differences such as `700` versus `700.0`, including overlap validation. Use an RCEL-1 expression implementation for ordered comparisons and conditional logic; scenarios, semantic review, and promotion govern the surrounding service lifecycle.

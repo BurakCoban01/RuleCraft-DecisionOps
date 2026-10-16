@@ -15,4 +15,4 @@ Editors can create, revise, and delete unused types. A type used by another type
 
 A decision service is the catalog identity for a business decision. Its ordered input and output fields reference built-in or reusable types. Services can be edited, archived, restored, filtered, and opened through a stable project URL. Archiving preserves the contract for later governance work.
 
-The workbench exposes loading, empty, authoring, validation, conflict, stale, permission, archived, error, and compact responsive states. Graph authoring starts in decision graph and will attach to these persisted service contracts.
+The workbench exposes loading, empty, authoring, validation, conflict, stale, permission, archived, error, and compact responsive states. The graph modeler attaches typed nodes and connections to these persisted service contracts; downstream authoring and runtime checks use the same type identities.
