@@ -1,123 +1,140 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import { api, ApiError } from './api';
+import type { BuiltinType, DecisionService, Project, ProjectMember, Session, TypeDefinition, TypeKind, TypeRef, WorkspaceUser } from './api';
 import { usePlatformManifest } from './usePlatformManifest';
 
 type Theme = 'light' | 'dark';
+type View = 'projects' | 'team';
 
 function BrandMark() {
-  return (
-    <svg className="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
-      <path d="M7 8.5h14.5L33 20 21.5 31.5H7V8.5Z" />
-      <path d="M13 14h8l6 6-6 6h-8V14Z" />
-      <circle cx="18" cy="20" r="2.25" />
-    </svg>
-  );
+  return <svg className="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M7 8.5h14.5L33 20 21.5 31.5H7V8.5Z"/><path d="M13 14h8l6 6-6 6h-8V14Z"/><circle cx="18" cy="20" r="2.25"/></svg>;
 }
 
 function ThemeIcon({ theme }: { theme: Theme }) {
-  return theme === 'light' ? (
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" /></svg>
-  ) : (
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8 8 0 0 1 8.8 4 8 8 0 1 0 20 15.2Z" /></svg>
-  );
+  return theme === 'light'
+    ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg>
+    : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8 8 0 0 1 8.8 4 8 8 0 1 0 20 15.2Z"/></svg>;
 }
 
-function LoadingState() {
-  return (
-    <section className="state-panel" aria-live="polite" aria-busy="true">
-      <div className="state-symbol loading-symbol" aria-hidden="true"><span /></div>
-      <p className="eyebrow">Opening workspace</p>
-      <h1>Checking your private decision environment</h1>
-      <p className="state-copy">Confirming that the workspace is available before showing governed decision content.</p>
-      <div className="skeleton-lines" aria-hidden="true"><span /><span /><span /></div>
-    </section>
-  );
+function LoadingState({ label = 'Opening workspace' }: { label?: string }) {
+  return <section className="state-panel compact-state" aria-live="polite" aria-busy="true"><div className="state-symbol loading-symbol"><span/></div><p className="eyebrow">{label}</p><h1>Preparing your governed decision environment</h1><div className="skeleton-lines"><span/><span/><span/></div></section>;
 }
 
 function UnavailableState({ offline, retry }: { offline: boolean; retry: () => void }) {
-  return (
-    <section className="state-panel" role="alert">
-      <div className="state-symbol error-symbol" aria-hidden="true">!</div>
-      <p className="eyebrow">{offline ? 'Connection interrupted' : 'Workspace unavailable'}</p>
-      <h1>{offline ? 'Your workspace is offline' : 'The decision workspace cannot be reached'}</h1>
-      <p className="state-copy">
-        {offline
-          ? 'Your work remains unchanged. Reconnect to continue into the private workspace.'
-          : 'The service may be starting or temporarily unavailable. Try the connection again.'}
-      </p>
-      <button className="primary-button" type="button" onClick={retry}>Try connection again</button>
-    </section>
-  );
+  return <section className="state-panel" role="alert"><div className="state-symbol error-symbol">!</div><p className="eyebrow">{offline ? 'Connection interrupted' : 'Workspace unavailable'}</p><h1>{offline ? 'Your workspace is offline' : 'The decision workspace cannot be reached'}</h1><p className="state-copy">Your work remains unchanged. Reconnect and try again when the service is available.</p><button className="primary-button" onClick={retry}>Try connection again</button></section>;
 }
 
-function ReadyState({ version, serverTime }: { version: string; serverTime: string }) {
-  const time = new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(serverTime));
+function Login({ onLogin }: { onLogin: (session: Session) => void }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSubmitting(true); setError('');
+    const data = new FormData(event.currentTarget);
+    try { onLogin(await api.login(String(data.get('workspace')), String(data.get('email')), String(data.get('password')))); }
+    catch (reason) { setError(reason instanceof ApiError ? reason.message : 'Sign-in could not be completed.'); }
+    finally { setSubmitting(false); }
+  }
+  return <section className="login-layout">
+    <div className="login-intro"><div className="decision-line"><span/><span/><span/></div><p className="eyebrow">Decision operations</p><h1>Enter your governed workspace</h1><p className="lede">Author, review, and operate business decisions within the controls assigned to your role.</p><dl className="trust-list"><div><dt>Tenant isolated</dt><dd>Workspace context is established from your verified session.</dd></div><div><dt>Audited changes</dt><dd>Administrative and project actions leave a durable trail.</dd></div></dl></div>
+    <form className="login-card" onSubmit={submit}><p className="eyebrow">Private access</p><h2>Sign in to RuleCraft</h2><p>Use the workspace handle supplied by your administrator.</p>{error && <div className="inline-alert" role="alert">{error}</div>}<label>Workspace<input name="workspace" autoComplete="organization" required pattern="[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]" placeholder="acme-rules"/></label><label>Email<input name="email" type="email" autoComplete="username" required placeholder="you@company.com"/></label><label>Password<input name="password" type="password" autoComplete="current-password" required/></label><button className="primary-button full-button" disabled={submitting}>{submitting ? 'Verifying…' : 'Continue to workspace'}</button></form>
+  </section>;
+}
 
-  return (
-    <section className="ready-layout" aria-labelledby="workspace-title">
-      <div className="decision-line" aria-hidden="true"><span /><span /><span /></div>
-      <div className="ready-copy">
-        <div className="status-line" role="status"><span className="status-dot" />Private workspace available</div>
-        <p className="eyebrow">Decision operations</p>
-        <h1 id="workspace-title">Decision workspace</h1>
-        <p className="lede">Author, review, publish, and trace business decisions within the controls assigned to your role.</p>
-      </div>
-      <aside className="access-panel" aria-labelledby="access-title">
-        <div className="access-index" aria-hidden="true">01</div>
-        <div>
-          <p className="eyebrow">Workspace access</p>
-          <h2 id="access-title">Sign-in is required to view decision services</h2>
-          <p>Ask your workspace administrator for access. Your role will determine which decisions and actions are available.</p>
-        </div>
-      </aside>
-      <dl className="service-facts" aria-label="Workspace connection details">
-        <div><dt>Service state</dt><dd><span className="fact-indicator" />Connected</dd></div>
-        <div><dt>Workspace version</dt><dd>{version}</dd></div>
-        <div><dt>Confirmed</dt><dd>{time}</dd></div>
-      </dl>
-    </section>
-  );
+function ProjectsView({ user }: { user: NonNullable<Session['user']> }) {
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [selected, setSelected] = useState<Project | null>(null);
+  const [error, setError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const load = useCallback(() => api.projects().then(setProjects).catch((e) => { setError(e.message); setProjects([]); }), []);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(()=>{const handle=()=>{const id=location.pathname.match(/^\/projects\/([^/]+)/)?.[1];setSelected(id?(projects??[]).find((item)=>item.id===id)??null:null);};window.addEventListener('popstate',handle);return()=>window.removeEventListener('popstate',handle);},[projects]);
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(''); const form = event.currentTarget; const data = new FormData(form);
+    try { const project = await api.createProject({ projectKey: String(data.get('projectKey')), name: String(data.get('name')), description: String(data.get('description')) }); setProjects((current) => [...(current ?? []), project].sort((a, b) => a.name.localeCompare(b.name))); setCreating(false); form.reset(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Project creation failed.'); }
+  }
+  function open(project: Project, updateUrl = true) { if (updateUrl) history.pushState({}, '', `/projects/${project.id}/catalog`); setSelected(project); setError(''); }
+  useEffect(() => { if (projects) { const id = location.pathname.match(/^\/projects\/([^/]+)/)?.[1]; if (id && !selected) { const project = projects.find((item) => item.id === id); if (project) setSelected(project); else setError('That project was not found or is outside your access boundary.'); } } }, [projects, selected]);
+  if (projects === null) return <LoadingState label="Loading project access"/>;
+  if (selected) return <ProjectDetail project={selected} user={user} onBack={() => { history.pushState({}, '', '/projects'); setSelected(null); }} error={error}/>;
+  return <section className="workspace-page" aria-labelledby="projects-title"><header className="page-heading"><div><p className="eyebrow">Decision catalog</p><h1 id="projects-title">Projects</h1><p>Bounded workspaces for decision models, access, and governance.</p></div><button className="primary-button" onClick={() => setCreating(!creating)}>{creating ? 'Close form' : 'New project'}</button></header>{error && <div className="inline-alert" role="alert">{error}</div>}
+    {creating && <form className="editor-panel three-fields" onSubmit={create}><label>Project key<input name="projectKey" required pattern="[A-Za-z][A-Za-z0-9\-]{1,23}" placeholder="PRICING"/></label><label>Project name<input name="name" required maxLength={160} placeholder="Pricing decisions"/></label><label>Description<input name="description" maxLength={600} placeholder="Scope and operating purpose"/></label><button className="primary-button">Create project</button></form>}
+    {projects.length === 0 ? <div className="empty-state"><span>01</span><h2>Create the first governed project</h2><p>Projects establish access boundaries before decision models are authored.</p></div> : <div className="project-grid">{projects.map((project) => <button className="project-card" key={project.id} onClick={() => open(project)}><span className="project-key">{project.projectKey}</span><h2>{project.name}</h2><p>{project.description || 'No description has been added.'}</p><span className="role-badge">{project.accessRole}</span><span className="open-label">Open project <span aria-hidden="true">→</span></span></button>)}</div>}
+  </section>;
+}
+
+function ProjectDetail({ project, user, onBack, error }: { project: Project; user: NonNullable<Session['user']>; onBack: () => void; error: string }) {
+  const [tab,setTab]=useState<'services'|'types'|'access'>('services'); const [services,setServices]=useState<DecisionService[]|null>(null); const [types,setTypes]=useState<TypeDefinition[]|null>(null); const [members,setMembers]=useState<ProjectMember[]|null>(null); const [users,setUsers]=useState<WorkspaceUser[]>([]); const [localError,setLocalError]=useState(''); const [creating,setCreating]=useState(false); const [editingType,setEditingType]=useState<TypeDefinition|null>(null); const [editingService,setEditingService]=useState<DecisionService|null>(null); const [deleteConfirm,setDeleteConfirm]=useState<string|null>(null); const [query,setQuery]=useState('');
+  const canEdit=user.tenantRole==='ADMIN'||project.accessRole==='OWNER'||project.accessRole==='EDITOR'; const canManage=user.tenantRole==='ADMIN'||project.accessRole==='OWNER';
+  const reload=useCallback(async()=>{try{const [nextServices,nextTypes,nextMembers]=await Promise.all([api.decisionServices(project.id),api.types(project.id),api.projectMembers(project.id)]);setServices(nextServices);setTypes(nextTypes);setMembers(nextMembers);}catch(e){setLocalError(e instanceof Error?e.message:'Project catalog could not be loaded.');}},[project.id]);
+  useEffect(()=>{void reload();if(canManage&&user.tenantRole==='ADMIN')api.users().then(setUsers).catch(()=>undefined);},[reload,canManage,user.tenantRole]);
+  async function addMember(event:FormEvent<HTMLFormElement>){event.preventDefault();const data=new FormData(event.currentTarget);try{const member=await api.upsertMember(project.id,String(data.get('userId')),String(data.get('role')) as ProjectMember['role']);setMembers([...(members??[]).filter((m)=>m.userId!==member.userId),member]);}catch(e){setLocalError(e instanceof Error?e.message:'Membership could not be changed.');}}
+  async function archive(service:DecisionService){try{const changed=await api.changeDecisionServiceStatus(project.id,service.id,service.status==='ACTIVE'?'ARCHIVED':'ACTIVE',service.version);setServices((all)=>(all??[]).map((item)=>item.id===changed.id?changed:item));}catch(e){setLocalError(e instanceof Error?e.message:'Service status could not be changed.');}}
+  async function removeType(type:TypeDefinition){try{await api.deleteType(project.id,type.id,type.version);setTypes((all)=>(all??[]).filter((item)=>item.id!==type.id));}catch(e){setLocalError(e instanceof Error?e.message:'Type could not be deleted.');}}
+  const filteredServices=(services??[]).filter((item)=>`${item.serviceKey} ${item.name}`.toLowerCase().includes(query.toLowerCase())); const filteredTypes=(types??[]).filter((item)=>`${item.typeKey} ${item.name}`.toLowerCase().includes(query.toLowerCase()));
+  return <section className="workspace-page"><button className="text-button" onClick={onBack}>← Back to projects</button><header className="project-hero"><div><span className="project-key">{project.projectKey}</span><h1>{project.name}</h1><p>{project.description||'No description has been added.'}</p></div><span className="role-badge large">{project.accessRole} access</span></header>{(error||localError)&&<div className="inline-alert" role="alert">{error||localError}</div>}
+    <nav className="workbench-tabs" aria-label="Project workspace"><button className={tab==='services'?'current':''} onClick={()=>{setTab('services');setCreating(false);setEditingType(null);}}>Decision services <span>{services?.length??'—'}</span></button><button className={tab==='types'?'current':''} onClick={()=>{setTab('types');setCreating(false);setEditingService(null);}}>Types <span>{types?.length??'—'}</span></button><button className={tab==='access'?'current':''} onClick={()=>{setTab('access');setCreating(false);setEditingType(null);setEditingService(null);}}>Access <span>{members?.length??'—'}</span></button></nav>
+    {tab!=='access'&&<div className="catalog-toolbar"><label className="search-field"><span>Filter {tab==='services'?'services':'types'}</span><input value={query} onChange={(event)=>setQuery(event.target.value)} placeholder="Search by key or name"/></label>{canEdit&&<button className="primary-button" onClick={()=>{setCreating(!creating);setEditingType(null);setEditingService(null);}}>{creating?'Close editor':tab==='services'?'New decision service':'New type'}</button>}</div>}
+    {(creating||editingType)&&tab==='types'&&<TypeBuilder
+      initial={editingType} types={(types??[]).filter((type)=>type.id!==editingType?.id)}
+      onCancel={()=>{setCreating(false);setEditingType(null);}}
+      onSaved={(saved)=>{setTypes([...(types??[]).filter((item)=>item.id!==saved.id),saved]);setCreating(false);setEditingType(null);}}
+      onError={setLocalError} projectId={project.id}/>}
+    {(creating||editingService)&&tab==='services'&&<ServiceBuilder
+      initial={editingService} types={types??[]}
+      onCancel={()=>{setCreating(false);setEditingService(null);}}
+      onSaved={(saved)=>{setServices([...(services??[]).filter((item)=>item.id!==saved.id),saved]);setCreating(false);setEditingService(null);}}
+      onError={setLocalError} projectId={project.id}/>}
+    {tab==='services'&&(services===null?<div className="table-loading">Loading decision services…</div>:filteredServices.length===0?<CatalogEmpty title="No decision services yet" copy="Create a typed contract before authoring its decision graph."/>:<div className="catalog-list">{filteredServices.map((service)=><article className={`catalog-row ${service.status.toLowerCase()}`} key={service.id}><div><span className="project-key">{service.serviceKey}</span><h2>{service.name}</h2><p>{service.description||'No description added.'}</p></div><div className="contract-summary"><span>{service.inputs.length} inputs</span><span aria-hidden="true">→</span><span>{service.outputs.length} outputs</span></div><span className={`status-pill ${service.status.toLowerCase()}`}>{service.status}</span>{canEdit&&<div className="row-actions"><button className="text-button" onClick={()=>{setEditingService(service);setCreating(false);}}>Edit</button><button className="text-button" onClick={()=>archive(service)}>{service.status==='ACTIVE'?'Archive':'Restore'}</button></div>}</article>)}</div>)}
+    {tab==='types'&&(types===null?<div className="table-loading">Loading reusable types…</div>:filteredTypes.length===0?<CatalogEmpty title="No custom types yet" copy="Model an object, enum, or list to reuse across service contracts."/>:<div className="type-grid">{filteredTypes.map((type)=><article className="type-card" key={type.id}><div><span className="project-key">{type.typeKey}</span><span className="role-badge">{type.kind}</span></div><h2>{type.name}</h2><p>{type.description||typeSummary(type)}</p><small>Updated {new Intl.DateTimeFormat(undefined,{dateStyle:'medium'}).format(new Date(type.updatedAt))}</small>{canEdit&&<div className="row-actions"><button className="text-button" onClick={()=>{setEditingType(type);setCreating(false);setDeleteConfirm(null);}}>Edit type</button>{deleteConfirm===type.id?<><button className="text-button danger-action" onClick={()=>{void removeType(type);setDeleteConfirm(null);}}>Confirm delete</button><button className="text-button" onClick={()=>setDeleteConfirm(null)}>Cancel</button></>:<button className="text-button danger-action" onClick={()=>setDeleteConfirm(type.id)}>Delete type</button>}</div>}</article>)}</div>)}
+    {tab==='access'&&<><div className="section-heading"><div><p className="eyebrow">Access boundary</p><h2>Project members</h2></div><span>{members?.length??'—'} assigned</span></div>{canManage&&users.length>0&&<form className="editor-panel membership-form" onSubmit={addMember}><label>Workspace user<select name="userId">{users.filter((candidate)=>candidate.status==='ACTIVE').map((candidate)=><option key={candidate.id} value={candidate.id}>{candidate.displayName} · {candidate.email}</option>)}</select></label><label>Project role<select name="role"><option>EDITOR</option><option>REVIEWER</option><option>VIEWER</option><option>OWNER</option></select></label><button className="secondary-button">Assign access</button></form>}{members===null?<div className="table-loading">Loading members…</div>:<div className="data-table" role="table" aria-label="Project members"><div className="table-row table-head" role="row"><span>Name</span><span>Email</span><span>Role</span></div>{members.map((member)=><div className="table-row" role="row" key={member.userId}><strong>{member.displayName}</strong><span>{member.email}</span><span className="role-badge">{member.role}</span></div>)}</div>}</>}
+  </section>;
+}
+
+function CatalogEmpty({title,copy}:{title:string;copy:string}){return <div className="catalog-empty"><span aria-hidden="true">◇</span><h2>{title}</h2><p>{copy}</p></div>;}
+function typeSummary(type:TypeDefinition){if(type.kind==='OBJECT')return `${type.fields.length} ordered fields`;if(type.kind==='ENUM')return `${type.values.length} allowed values`;return `List of ${typeName(type.itemType)}`;}
+function typeName(ref:TypeRef|null){return ref?.builtinType?.replace('_',' ').toLowerCase()||ref?.displayName||'custom type';}
+function parseTypeRef(value:string):TypeRef{const [kind,id]=value.split(':');return kind==='builtin'?{builtinType:id as BuiltinType,customTypeId:null}:{builtinType:null,customTypeId:id};}
+function TypeSelect({types,value,onChange,label}:{types:TypeDefinition[];value:string;onChange:(value:string)=>void;label:string}){return <label>{label}<select value={value} onChange={(event)=>onChange(event.target.value)}><optgroup label="Built-in types">{(['TEXT','NUMBER','BOOLEAN','DATE','DATE_TIME'] as BuiltinType[]).map((type)=><option key={type} value={`builtin:${type}`}>{type.replace('_',' ')}</option>)}</optgroup>{types.length>0&&<optgroup label="Custom types">{types.map((type)=><option key={type.id} value={`custom:${type.id}`}>{type.name} · {type.typeKey}</option>)}</optgroup>}</select></label>;}
+type DraftField={fieldKey:string;label:string;typeValue:string;required:boolean};
+function FieldBuilder({title,types,fields,onChange}:{title:string;types:TypeDefinition[];fields:DraftField[];onChange:(fields:DraftField[])=>void}){function patch(index:number,next:Partial<DraftField>){onChange(fields.map((field,i)=>i===index?{...field,...next}:field));}return <fieldset className="field-builder"><legend>{title}</legend>{fields.map((field,index)=><div className="field-editor" key={index}><label>Field key<input value={field.fieldKey} onChange={(e)=>patch(index,{fieldKey:e.target.value})} placeholder="applicant" required pattern="[a-z][A-Za-z0-9_]{0,59}"/></label><label>Label<input value={field.label} onChange={(e)=>patch(index,{label:e.target.value})} placeholder="Applicant" required/></label><TypeSelect label="Type" types={types} value={field.typeValue} onChange={(value)=>patch(index,{typeValue:value})}/><label className="check-label"><input type="checkbox" checked={field.required} onChange={(e)=>patch(index,{required:e.target.checked})}/>Required</label>{fields.length>1&&<button type="button" className="text-button danger-action" onClick={()=>onChange(fields.filter((_,i)=>i!==index))}>Remove</button>}</div>)}<button type="button" className="secondary-button add-field" onClick={()=>onChange([...fields,{fieldKey:'',label:'',typeValue:'builtin:TEXT',required:true}])}>Add field</button></fieldset>;}
+function typeRefValue(ref:TypeRef|null){return ref?.customTypeId?`custom:${ref.customTypeId}`:`builtin:${ref?.builtinType??'TEXT'}`;}
+function TypeBuilder({types,projectId,initial,onSaved,onCancel,onError}:{types:TypeDefinition[];projectId:string;initial:TypeDefinition|null;onSaved:(type:TypeDefinition)=>void;onCancel:()=>void;onError:(message:string)=>void}){const defaultField={fieldKey:'',label:'',typeValue:'builtin:TEXT',required:true};const [kind,setKind]=useState<TypeKind>(initial?.kind??'OBJECT');const mappedFields=initial?.fields.map((field)=>({fieldKey:field.fieldKey,label:field.label,typeValue:typeRefValue(field.type),required:field.required}))??[];const [fields,setFields]=useState<DraftField[]>(mappedFields.length?mappedFields:[defaultField]);const [values,setValues]=useState(initial?.values.length?initial.values:[{value:'',label:''}]);const [itemType,setItemType]=useState(typeRefValue(initial?.itemType??null));async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const data=new FormData(event.currentTarget);const body={typeKey:String(data.get('typeKey')),name:String(data.get('name')),description:String(data.get('description')),kind,itemType:kind==='LIST'?parseTypeRef(itemType):null,fields:kind==='OBJECT'?fields.map((f)=>({fieldKey:f.fieldKey,label:f.label,type:parseTypeRef(f.typeValue),required:f.required})):[],values:kind==='ENUM'?values:[],version:initial?.version};try{onSaved(initial?await api.updateType(projectId,initial.id,body):await api.createType(projectId,body));}catch(e){onError(e instanceof Error?e.message:'Type could not be saved.');}}return <form className="schema-editor" onSubmit={submit}><div className="editor-title"><div><p className="eyebrow">Type authoring</p><h2>{initial?'Edit reusable type':'New reusable type'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancel</button></div><div className="editor-basics"><label>Type key<input name="typeKey" defaultValue={initial?.typeKey} required pattern="[A-Za-z][A-Za-z0-9_\-]{1,39}" placeholder="APPLICANT"/></label><label>Name<input name="name" defaultValue={initial?.name} required maxLength={160} placeholder="Applicant"/></label><label>Kind<select value={kind} onChange={(e)=>setKind(e.target.value as TypeKind)}><option>OBJECT</option><option>ENUM</option><option>LIST</option></select></label><label className="wide-field">Description<input name="description" defaultValue={initial?.description??''} maxLength={600} placeholder="Purpose and business meaning"/></label></div>{kind==='OBJECT'&&<FieldBuilder title="Object fields" types={types} fields={fields} onChange={setFields}/>} {kind==='ENUM'&&<fieldset className="field-builder"><legend>Allowed values</legend>{values.map((value,index)=><div className="enum-editor" key={index}><label>Stored value<input value={value.value} onChange={(e)=>setValues(values.map((item,i)=>i===index?{...item,value:e.target.value}:item))} required/></label><label>Display label<input value={value.label} onChange={(e)=>setValues(values.map((item,i)=>i===index?{...item,label:e.target.value}:item))} required/></label>{values.length>1&&<button type="button" className="text-button danger-action" onClick={()=>setValues(values.filter((_,i)=>i!==index))}>Remove</button>}</div>)}<button type="button" className="secondary-button add-field" onClick={()=>setValues([...values,{value:'',label:''}])}>Add value</button></fieldset>} {kind==='LIST'&&<div className="list-item-editor"><TypeSelect label="List item type" types={types} value={itemType} onChange={setItemType}/></div>}<button className="primary-button">{initial?'Save type':'Create type'}</button></form>;}
+function ServiceBuilder({types,projectId,initial,onSaved,onCancel,onError}:{types:TypeDefinition[];projectId:string;initial:DecisionService|null;onSaved:(service:DecisionService)=>void;onCancel:()=>void;onError:(message:string)=>void}){const map=(field:DecisionService['inputs'][number]):DraftField=>({fieldKey:field.fieldKey,label:field.label,typeValue:typeRefValue(field.type),required:field.required});const [inputs,setInputs]=useState<DraftField[]>(initial?.inputs.map(map)??[{fieldKey:'',label:'',typeValue:'builtin:TEXT',required:true}]);const [outputs,setOutputs]=useState<DraftField[]>(initial?.outputs.map(map)??[{fieldKey:'result',label:'Result',typeValue:'builtin:BOOLEAN',required:true}]);async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const data=new FormData(event.currentTarget);const convert=(fields:DraftField[])=>fields.map((f)=>({fieldKey:f.fieldKey,label:f.label,type:parseTypeRef(f.typeValue),required:f.required}));const body={serviceKey:String(data.get('serviceKey')),name:String(data.get('name')),description:String(data.get('description')),inputs:convert(inputs),outputs:convert(outputs),version:initial?.version};try{onSaved(initial?await api.updateDecisionService(projectId,initial.id,body):await api.createDecisionService(projectId,body));}catch(e){onError(e instanceof Error?e.message:'Decision service could not be saved.');}}return <form className="schema-editor" onSubmit={submit}><div className="editor-title"><div><p className="eyebrow">Contract authoring</p><h2>{initial?'Edit decision service':'New decision service'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancel</button></div><div className="editor-basics"><label>Service key<input name="serviceKey" defaultValue={initial?.serviceKey} required pattern="[A-Za-z][A-Za-z0-9_\-]{1,39}" placeholder="ELIGIBILITY"/></label><label>Name<input name="name" defaultValue={initial?.name} required maxLength={160} placeholder="Eligibility decision"/></label><label className="wide-field">Description<input name="description" defaultValue={initial?.description??''} maxLength={600} placeholder="What this decision answers"/></label></div><FieldBuilder title="Inputs" types={types} fields={inputs} onChange={setInputs}/><FieldBuilder title="Outputs" types={types} fields={outputs} onChange={setOutputs}/><button className="primary-button">{initial?'Save decision service':'Create decision service'}</button></form>;}
+
+function TeamView({ currentUser }: { currentUser: NonNullable<Session['user']> }) {
+  const [users, setUsers] = useState<WorkspaceUser[] | null>(null); const [error, setError] = useState(''); const [adding, setAdding] = useState(false);
+  const load = useCallback(() => api.users().then(setUsers).catch((e) => setError(e.message)), []); useEffect(() => { void load(); }, [load]);
+  async function create(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); try { const created = await api.createUser({ email: String(data.get('email')), displayName: String(data.get('displayName')), tenantRole: String(data.get('tenantRole')), temporaryPassword: String(data.get('temporaryPassword')) }); setUsers((all) => [...(all ?? []), created]); form.reset(); setAdding(false); } catch (e) { setError(e instanceof Error ? e.message : 'User could not be created.'); } }
+  async function toggle(user: WorkspaceUser) { try { const changed = await api.changeUserStatus(user.id, user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'); setUsers((all) => (all ?? []).map((item) => item.id === changed.id ? changed : item)); } catch (e) { setError(e instanceof Error ? e.message : 'Status could not be changed.'); } }
+  if (users === null) return <LoadingState label="Loading workspace team"/>;
+  return <section className="workspace-page"><header className="page-heading"><div><p className="eyebrow">Workspace administration</p><h1>Team access</h1><p>Provision identities and control workspace-level access.</p></div><button className="primary-button" onClick={() => setAdding(!adding)}>{adding ? 'Close form' : 'Add user'}</button></header>{error && <div className="inline-alert" role="alert">{error}</div>}
+    {adding && <form className="editor-panel user-form" onSubmit={create}><label>Display name<input name="displayName" required maxLength={160}/></label><label>Email<input name="email" type="email" required/></label><label>Workspace role<select name="tenantRole"><option value="MEMBER">Member</option><option value="ADMIN">Administrator</option></select></label><label>Temporary password<input name="temporaryPassword" type="password" required minLength={12} autoComplete="new-password"/></label><button className="primary-button">Provision user</button></form>}
+    <div className="data-table users-table" role="table" aria-label="Workspace users"><div className="table-row table-head"><span>Person</span><span>Workspace role</span><span>Status</span><span>Action</span></div>{users.map((person) => <div className="table-row" key={person.id}><span><strong>{person.displayName}</strong><small>{person.email}</small></span><span>{person.tenantRole}</span><span className={`status-pill ${person.status.toLowerCase()}`}>{person.status}</span><button className="text-button" disabled={person.id === currentUser.id} onClick={() => toggle(person)}>{person.status === 'ACTIVE' ? 'Disable' : 'Restore'}</button></div>)}</div>
+  </section>;
+}
+
+function AuthenticatedShell({ session, onLogout, theme, toggleTheme }: { session: Session; onLogout: () => void; theme: Theme; toggleTheme: () => void }) {
+  const user = session.user!; const requestedTeam = location.pathname === '/admin/users';
+  const [view, setViewState] = useState<View>(requestedTeam && user.tenantRole === 'ADMIN' ? 'team' : 'projects');
+  const [permissionNotice] = useState(requestedTeam && user.tenantRole !== 'ADMIN');
+  useEffect(()=>{const handle=()=>setViewState(location.pathname==='/admin/users'&&user.tenantRole==='ADMIN'?'team':'projects');window.addEventListener('popstate',handle);return()=>window.removeEventListener('popstate',handle);},[user.tenantRole]);
+  function setView(next: View) { history.pushState({}, '', next === 'team' ? '/admin/users' : '/projects'); setViewState(next); }
+  return <div className="app-shell"><header className="mobile-header"><span className="brand"><BrandMark/><span>RuleCraft</span></span><button className="icon-button" onClick={toggleTheme} aria-label={`Use ${theme === 'light' ? 'dark' : 'light'} theme`}><ThemeIcon theme={theme}/></button><nav className="mobile-nav" aria-label="Mobile navigation"><button className={view === 'projects' ? 'current' : ''} onClick={() => setView('projects')}>Projects</button>{user.tenantRole === 'ADMIN' && <button className={view === 'team' ? 'current' : ''} onClick={() => setView('team')}>Team access</button>}<button onClick={onLogout}>Sign out</button></nav></header><aside className="navigation-rail"><a className="brand" href="/projects"><BrandMark/><span>RuleCraft</span></a><div className="workspace-identity"><span>{user.workspace}</span><strong>{user.displayName}</strong></div><nav aria-label="Primary navigation"><button className={`nav-item ${view === 'projects' ? 'current' : ''}`} onClick={() => setView('projects')}><span className="nav-glyph">P</span><span>Projects</span></button>{user.tenantRole === 'ADMIN' && <button className={`nav-item ${view === 'team' ? 'current' : ''}`} onClick={() => setView('team')}><span className="nav-glyph">A</span><span>Team access</span></button>}</nav><div className="rail-footer"><span className="private-label"><span/>Private environment</span><button className="theme-button" onClick={toggleTheme}><ThemeIcon theme={theme}/><span>Use {theme === 'light' ? 'dark' : 'light'} theme</span></button><button className="signout-button" onClick={onLogout}>Sign out</button></div></aside><main><div className="page-context"><span>{user.workspace}</span><span>/</span><strong>{view === 'projects' ? 'Projects' : 'Team access'}</strong></div>{permissionNotice && <div className="inline-alert permission" role="alert">You do not have permission to open workspace administration.</div>}{view === 'projects' ? <ProjectsView user={user}/> : <TeamView currentUser={user}/>}</main><footer className="product-footer"><span>RuleCraft DecisionOps</span><span>{user.email}</span></footer></div>;
 }
 
 export function App() {
-  const { state, refresh } = usePlatformManifest();
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('rulecraft-theme');
-    if (stored === 'light' || stored === 'dark') return stored;
-    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('rulecraft-theme', theme);
-  }, [theme]);
-
-  return (
-    <div className="app-shell">
-      <header className="mobile-header">
-        <a className="brand" href="/" aria-label="RuleCraft home"><BrandMark /><span>RuleCraft</span></a>
-        <button className="icon-button" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={`Use ${theme === 'light' ? 'dark' : 'light'} theme`}><ThemeIcon theme={theme} /></button>
-      </header>
-      <aside className="navigation-rail" aria-label="Primary navigation">
-        <a className="brand" href="/" aria-label="RuleCraft home"><BrandMark /><span>RuleCraft</span></a>
-        <nav>
-          <a className="nav-item current" href="/" aria-current="page"><span className="nav-glyph" aria-hidden="true">R</span><span>Workspace</span></a>
-        </nav>
-        <div className="rail-footer">
-          <span className="private-label"><span />Private environment</span>
-          <button className="theme-button" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}><ThemeIcon theme={theme} /><span>Use {theme === 'light' ? 'dark' : 'light'} theme</span></button>
-        </div>
-      </aside>
-      <main>
-        <div className="page-context"><span>RuleCraft</span><span aria-hidden="true">/</span><strong>Workspace</strong></div>
-        {state.status === 'loading' && <LoadingState />}
-        {state.status === 'offline' && <UnavailableState offline retry={refresh} />}
-        {state.status === 'error' && <UnavailableState offline={false} retry={refresh} />}
-        {state.status === 'ready' && <ReadyState version={state.manifest.version} serverTime={state.manifest.serverTime} />}
-      </main>
-      <footer className="product-footer"><span>RuleCraft DecisionOps</span><span>Private workspace</span></footer>
-    </div>
-  );
+  const { state: platform, refresh } = usePlatformManifest(); const [session, setSession] = useState<Session | null>(null); const [sessionError, setSessionError] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => { const stored = localStorage.getItem('rulecraft-theme'); return stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; });
+  useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('rulecraft-theme', theme); }, [theme]);
+  useEffect(() => { if (platform.status === 'ready') api.session().then(setSession).catch(() => setSessionError(true)); }, [platform.status]);
+  async function logout() { try { await api.logout(); } finally { history.replaceState({}, '', '/'); setSession({ authenticated: false, user: null }); } }
+  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+  if (platform.status === 'loading' || (platform.status === 'ready' && session === null && !sessionError)) return <div className="public-shell"><PublicHeader theme={theme} toggle={toggleTheme}/><LoadingState/></div>;
+  if (platform.status === 'offline' || platform.status === 'error' || sessionError) return <div className="public-shell"><PublicHeader theme={theme} toggle={toggleTheme}/><UnavailableState offline={platform.status === 'offline'} retry={() => { setSessionError(false); refresh(); }}/></div>;
+  if (!session?.authenticated) return <div className="public-shell"><PublicHeader theme={theme} toggle={toggleTheme}/><main><Login onLogin={setSession}/></main><footer className="product-footer"><span>RuleCraft DecisionOps</span><span>Private workspace</span></footer></div>;
+  return <AuthenticatedShell session={session} onLogout={logout} theme={theme} toggleTheme={toggleTheme}/>;
 }
+
+function PublicHeader({ theme, toggle }: { theme: Theme; toggle: () => void }) { return <header className="public-header"><span className="brand"><BrandMark/><span>RuleCraft</span></span><span className="private-label"><span/>Private environment</span><button className="icon-button" onClick={toggle} aria-label={`Use ${theme === 'light' ? 'dark' : 'light'} theme`}><ThemeIcon theme={theme}/></button></header>; }

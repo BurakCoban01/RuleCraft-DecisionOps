@@ -4,7 +4,7 @@ A versioned business-rules and decision-management platform with a Java / Spring
 
 ## Implemented capabilities
 
-Platform foundation.
+Platform foundation, identity and access, typed catalog.
 
 ## Local development
 
