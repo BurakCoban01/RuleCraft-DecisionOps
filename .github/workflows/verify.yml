@@ -42,7 +42,148 @@ jobs:
         run: pnpm lint
       - name: Test frontend
         working-directory: web
-        run: pnpm test --maxWorkers=1
+        run: pnpm test
       - name: Build frontend
         working-directory: web
         run: pnpm build
+      - name: Verify repository contracts and documentation
+        run: python3 scripts/check_repository.py
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: rulecraft_test
+          POSTGRES_USER: rulecraft_test
+          POSTGRES_PASSWORD: disposable-ci-database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rulecraft_test -d rulecraft_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify against PostgreSQL
+        working-directory: api
+        env:
+          RULECRAFT_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/rulecraft_test
+          RULECRAFT_TEST_DB_USER: rulecraft_test
+          RULECRAFT_TEST_DB_PASSWORD: disposable-ci-database
+        run: ./mvnw -B verify -Dspring.profiles.active=postgres
+
+  browser-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_DB: rulecraft
+          POSTGRES_USER: rulecraft
+          POSTGRES_PASSWORD: disposable-ci-database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rulecraft -d rulecraft"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.29.2
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.19.0'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Package API and install browser dependencies
+        run: |
+          cd api
+          ./mvnw -B -DskipTests package
+          cd ../web
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Run persisted browser journeys
+        env:
+          RULECRAFT_DB_URL: jdbc:postgresql://127.0.0.1:5432/rulecraft
+          RULECRAFT_DB_PASSWORD: disposable-ci-database
+          RULECRAFT_BOOTSTRAP_ENABLED: 'true'
+          RULECRAFT_BOOTSTRAP_WORKSPACE: acme-rules
+          RULECRAFT_BOOTSTRAP_TENANT_NAME: Acme Rules
+          RULECRAFT_BOOTSTRAP_ADMIN_EMAIL: admin@example.test
+          RULECRAFT_BOOTSTRAP_ADMIN_NAME: Ada Admin
+          RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD: CorrectHorseBattery12!
+        run: |
+          java -Xmx512m -jar api/target/rulecraft-api-*.jar > /tmp/rulecraft-api.log 2>&1 &
+          cd web
+          pnpm dev > /tmp/rulecraft-web.log 2>&1 &
+          ready=false
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:50110/actuator/health/readiness > /dev/null && curl --fail --silent http://127.0.0.1:50111/ > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          pnpm test:e2e
+
+  publication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Install checksummed secret scanner
+        run: |
+          curl -fsSLo /tmp/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+      - name: Scan reachable secret history
+        run: /tmp/gitleaks git . --redact --log-opts='--all' --no-banner
+      - name: Verify tracked publication boundaries
+        run: python3 scripts/check_repository.py
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate production configuration
+        run: docker compose -f compose.production.yaml --env-file .env.production.example config --quiet
+      - name: Verify private exposure and container hardening
+        shell: pwsh
+        run: ./scripts/verify-private-exposure.ps1
+      - name: Build application images
+        run: docker compose -f compose.production.yaml --env-file .env.production.example build api web
+      - name: Smoke-test disposable private stack
+        shell: bash
+        run: |
+          export RULECRAFT_DB_PASSWORD="$(openssl rand -hex 24)"
+          export RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 20)"
+          echo "::add-mask::$RULECRAFT_DB_PASSWORD"
+          echo "::add-mask::$RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD"
+          export RULECRAFT_BOOTSTRAP_ENABLED=true
+          export RULECRAFT_SESSION_COOKIE_SECURE=false
+          export RULECRAFT_SMOKE_WORKSPACE=acme-rules
+          export RULECRAFT_SMOKE_EMAIL=admin@example.test
+          export RULECRAFT_SMOKE_PASSWORD="$RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD"
+          docker compose -f compose.production.yaml --env-file .env.production.example up -d --no-build --wait --wait-timeout 360
+          python3 scripts/smoke_test.py
+      - name: Stop disposable stack
+        if: always()
+        run: docker compose -f compose.production.yaml --env-file .env.production.example down -v

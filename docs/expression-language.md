@@ -23,7 +23,7 @@ There is no assignment, loop, collection comprehension, mutation, or arbitrary m
 
 | Operator | Operand contract |
 |---|---|
-| Unary `-`, `+`, `-`, `*`, `/` | Numeric operands; division by zero is a stable runtime problem |
+| Unary `-`; binary `+`, `-`, `*`, `/` | Numeric operands; division by zero is a stable runtime problem |
 | `<`, `<=`, `>`, `>=` | Compatible number, date, or date-time values |
 | `=`, `!=` | Compatible typed values |
 | `not`, `and`, `or` | Boolean operands |
@@ -31,7 +31,7 @@ There is no assignment, loop, collection comprehension, mutation, or arbitrary m
 
 Precedence, strongest first: parentheses, unary, multiplication/division, addition/subtraction, ordered comparison, equality, `and`, then `or`. Use parentheses to make business intent explicit. Boolean operators and conditional branches short-circuit.
 
-Arithmetic uses Java decimal semantics; division uses the evaluator's bounded decimal precision. Temporal values retain their ISO-8601 representation. This reference describes the supported subset rather than implying unspecified FEEL coercion rules.
+Arithmetic uses Java decimal semantics; division uses `MathContext.DECIMAL128`. Temporal values retain their ISO-8601 representation. This reference describes the supported subset rather than implying unspecified FEEL coercion rules.
 
 ## Pure functions
 

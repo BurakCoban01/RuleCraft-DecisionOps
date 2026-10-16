@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM eclipse-temurin:25.0.4_7-jdk-alpine-3.24 AS build
 WORKDIR /workspace
+ENV MAVEN_OPTS="-Xms64m -Xmx384m"
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 chmod +x mvnw && ./mvnw -B -DskipTests dependency:go-offline

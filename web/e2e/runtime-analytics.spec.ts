@@ -98,7 +98,7 @@ test('reports persisted runtime evidence and benchmarks the active artifact', as
 
   await page.getByRole('button', { name: 'Back to decision graph' }).click();
   await page.getByRole('button', { name: 'Analytics' }).click();
-  await expect(page.getByRole('heading', { name: 'Runtime analytics' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Runtime analytics', exact: true, level: 1 })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.analytics-kpis').getByText('5', { exact: true }).first()).toBeVisible();
   await expect(page.locator('.channel-bars strong').filter({ hasText: 'SANDBOX' })).toBeVisible();
   await expect(page.locator('.channel-bars strong').filter({ hasText: 'WORKBENCH BATCH' })).toBeVisible();
@@ -114,7 +114,7 @@ test('reports persisted runtime evidence and benchmarks the active artifact', as
   await expect(page.locator('.api-secret')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('workspace.png'), fullPage: true });
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Runtime analytics' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Runtime analytics', exact: true, level: 1 })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.benchmark-history')).toContainText('25 iterations');
   await page.getByLabel('Runtime channel').selectOption('API_SINGLE');
   await expect(page.locator('.analytics-controls')).toHaveAttribute('aria-busy', 'false');

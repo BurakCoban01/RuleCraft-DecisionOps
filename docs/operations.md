@@ -53,6 +53,8 @@ docker compose -f compose.production.yaml --env-file .env.production config --qu
 
 The verifier rejects public database/API ports, non-loopback web publication, a non-internal database network, privileged services, or weakened application container hardening.
 
+For a disposable loopback rehearsal, export `RULECRAFT_SMOKE_WORKSPACE`, `RULECRAFT_SMOKE_EMAIL`, and `RULECRAFT_SMOKE_PASSWORD` with the configured administrator identity, then run `python scripts/smoke_test.py`. The check signs in, creates a synthetic project, verifies its persisted presence and the V16 operational posture, and signs out. It intentionally leaves that project in the disposable database; do not run it against business data. Credentials remain in the process environment and are not printed.
+
 ## Recovery
 
 Operations is administrator-only. Review its posture and fingerprint before running a recovery scan. The scan can interrupt `RUNNING` regression matrices and clear inconsistent runtime pointers while retaining governed history. Coordinate with active work first: this application does not maintain distributed worker leases.
