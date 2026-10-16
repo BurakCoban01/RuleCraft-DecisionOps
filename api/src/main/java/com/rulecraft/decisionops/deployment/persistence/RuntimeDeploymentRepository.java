@@ -1,0 +1,3 @@
+package com.rulecraft.decisionops.deployment.persistence;
+import com.rulecraft.decisionops.deployment.domain.RuntimeDeployment;import java.util.*;import org.springframework.data.jpa.repository.JpaRepository;
+public interface RuntimeDeploymentRepository extends JpaRepository<RuntimeDeployment,UUID>{List<RuntimeDeployment> findTop100ByEnvironmentIdOrderBySequenceNumberDesc(UUID environmentId);Optional<RuntimeDeployment> findByIdAndServiceIdAndTenantIdAndProjectId(UUID id,UUID serviceId,UUID tenantId,UUID projectId);Optional<RuntimeDeployment> findByTenantIdAndServiceIdAndClientRequestId(UUID tenantId,UUID serviceId,UUID requestId);long countByEnvironmentId(UUID environmentId);}

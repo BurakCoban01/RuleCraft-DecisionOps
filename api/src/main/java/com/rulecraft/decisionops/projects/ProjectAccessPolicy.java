@@ -38,6 +38,27 @@ public class ProjectAccessPolicy {
         return project;
     }
 
+    public Project requireReview(RuleCraftPrincipal actor, UUID projectId) {
+        var project = requireVisible(actor, projectId);
+        if (actor.tenantRole() == TenantRole.ADMIN) return project;
+        var role = membershipRole(actor, projectId);
+        if (role != ProjectRole.OWNER && role != ProjectRole.REVIEWER) {
+            throw new DomainProblemException(HttpStatus.FORBIDDEN, "RC-PROJECT-REVIEW-FORBIDDEN",
+                    "Project reviewer permission is required.");
+        }
+        return project;
+    }
+
+    public Project requirePromote(RuleCraftPrincipal actor, UUID projectId) {
+        var project = requireVisible(actor, projectId);
+        if (actor.tenantRole() == TenantRole.ADMIN) return project;
+        if (membershipRole(actor, projectId) != ProjectRole.OWNER) {
+            throw new DomainProblemException(HttpStatus.FORBIDDEN, "RC-PROJECT-PROMOTE-FORBIDDEN",
+                    "Project owner permission is required.");
+        }
+        return project;
+    }
+
     public Project lockForManage(RuleCraftPrincipal actor, UUID projectId) {
         var project = projects.lockByIdAndTenantId(projectId, actor.tenantId()).orElseGet(() -> notFound());
         if (actor.tenantRole() == TenantRole.ADMIN) return project;
