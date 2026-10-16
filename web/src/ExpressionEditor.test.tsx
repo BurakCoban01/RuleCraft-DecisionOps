@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExpressionEditor } from './ExpressionEditor';
 import type { DecisionExpression, DecisionService, GraphNode } from './api';
+import { StrictMode } from 'react';
 
 const service: DecisionService = { id: 's1', serviceKey: 'ELIGIBILITY', name: 'Eligibility', description: null, status: 'ACTIVE', inputs: [], outputs: [], updatedAt: '2026-08-29T00:00:00Z', version: 0 };
 const node: GraphNode = { id: 'n1', nodeKey: 'eligibilityExpression', name: 'Eligibility expression', kind: 'DECISION', serviceFieldKey: null, positionX: 200, positionY: 100, ports: [] };
@@ -27,6 +28,16 @@ describe('ExpressionEditor', () => {
     expect(await screen.findByText('Read-only access. Owners and editors can change this expression.')).toBeInTheDocument();
     expect(screen.getByLabelText('Expression source')).toHaveAttribute('readonly');
     expect(screen.queryByRole('button', { name: 'Save expression' })).not.toBeInTheDocument();
+  });
+  it('does not let a stale strict-mode read overwrite initialization', async () => {
+    let resolveFirst: ((value: Response) => void) | undefined; let reads = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => { if (init?.method === 'POST') return response(empty, 201); reads += 1; if (reads === 1) return new Promise<Response>((resolve) => { resolveFirst = resolve; }); return response(null, 204); });
+    render(<StrictMode><ExpressionEditor projectId="p1" service={service} node={node} types={[]} canEdit onBack={() => undefined}/></StrictMode>);
+    await userEvent.click(await screen.findByRole('button', { name: 'Initialize expression' }));
+    expect(await screen.findByLabelText('Expression source')).toBeInTheDocument();
+    resolveFirst?.(new Response(null, { status: 204 }));
+    await waitFor(() => expect(screen.getByLabelText('Expression source')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Initialize expression' })).not.toBeInTheDocument();
   });
   it('requires confirmation before removing an expression implementation', async () => {
     const onBack = vi.fn();
