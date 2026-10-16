@@ -29,6 +29,8 @@ If the graph interface changes, validity is recomputed against the current port 
 
 A decision can have either a table or expression. Use the two-step removal action to deliberately clear the current implementation before choosing the other kind.
 
+Valid RCEL-1 expressions execute only through RuleCraft's owned AST evaluator. It has no reflection, host-language calls, I/O, mutation, or general function registry. Arithmetic uses decimal semantics; division by zero and missing runtime fields return stable evaluation problems. Boolean and conditional branches short-circuit, and dates/date-times retain their ISO-8601 value form.
+
 ## Security boundary
 
 RCEL-1 has no host-language calls, methods, assignment, loops, reflection, filesystem, environment, process, network, I/O, or side effects. Unknown functions are rejected. Source, token, and nesting bounds protect validation resources. expression authoring validates only; deterministic evaluation and runtime error behavior are introduced in decision execution.

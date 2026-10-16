@@ -36,6 +36,17 @@ export interface ExpressionIssue { code: string; message: string; line: number; 
 export interface ExpressionSymbol { key: string; label: string; type: TypeRef }
 export interface DecisionExpression { id: string; graphId: string; nodeId: string; nodeKey: string; nodeName: string; languageVersion: 'RCEL-1'; source: string; validationStatus: 'VALID' | 'INVALID'; issues: ExpressionIssue[]; inferredType: string | null; inputs: ExpressionSymbol[]; output: ExpressionSymbol; updatedAt: string; version: number }
 export interface DecisionExpressionSummary { nodeId: string; validationStatus: 'VALID' | 'INVALID'; languageVersion: 'RCEL-1'; updatedAt: string; version: number }
+export interface DecisionEvaluation { nodeId: string; nodeKey: string; nodeName: string; implementation: 'TABLE' | 'EXPRESSION'; implementationVersion: number; matchedRuleId: string | null; value: unknown }
+export interface SandboxEvaluation { evaluationId: string; decisionServiceId: string; graphVersion: number; outputs: Record<string, unknown>; decisions: DecisionEvaluation[] }
+export interface TestIssue { code: string; message: string; fieldKey: string | null; target: 'INPUT' | 'OUTPUT' | 'TEST' }
+export interface TestRunSummary { id: string; status: 'PASSED' | 'FAILED'; graphVersion: number; executedAt: string }
+export interface DecisionTestCase { id: string; testKey: string; name: string; description: string | null; inputs: Record<string, unknown>; expectedOutputs: Record<string, unknown>; validationStatus: 'VALID' | 'INVALID'; issues: TestIssue[]; latestRun: TestRunSummary | null; updatedAt: string; version: number }
+export interface DecisionTestRun { id: string; testCaseId: string; testCaseVersion: number; evaluationId: string; graphVersion: number; status: 'PASSED' | 'FAILED'; expectedOutputs: Record<string, unknown>; actualOutputs: Record<string, unknown>; decisions: DecisionEvaluation[]; executedAt: string }
+export type MatrixRunStatus = 'RUNNING' | 'COMPLETED' | 'INTERRUPTED';
+export type MatrixCaseStatus = 'PASSED' | 'FAILED' | 'ERROR';
+export interface MatrixRunSummary { id: string; clientRequestId: string; status: MatrixRunStatus; selectedCount: number; passedCount: number; failedCount: number; errorCount: number; startedAt: string; completedAt: string | null }
+export interface MatrixCaseResult { id: string; position: number; testCaseId: string; testCaseVersion: number; testKey: string; testName: string; status: MatrixCaseStatus; testRunId: string | null; evaluationId: string | null; graphVersion: number | null; expectedOutputs: Record<string, unknown>; actualOutputs: Record<string, unknown> | null; decisions: DecisionEvaluation[]; errorCode: string | null; errorDetail: string | null; executedAt: string }
+export interface RegressionMatrix { run: MatrixRunSummary; selectedCaseIds: string[]; results: MatrixCaseResult[] }
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string, readonly fields?: Record<string, string>) {
@@ -93,6 +104,16 @@ export const api = {
   initializeDecisionExpression: (projectId: string, serviceId: string, nodeId: string) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'POST' }),
   updateDecisionExpression: (projectId: string, serviceId: string, nodeId: string, body: { version: number; source: string }) => request<DecisionExpression>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression`, { method: 'PUT', body: JSON.stringify(body) }),
   removeDecisionExpression: (projectId: string, serviceId: string, nodeId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/graph/nodes/${nodeId}/decision-expression?version=${version}`, { method: 'DELETE' }),
+  evaluateDecisionService: (projectId: string, serviceId: string, inputs: Record<string, unknown>) => request<SandboxEvaluation>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/sandbox/evaluations`, { method: 'POST', body: JSON.stringify({ inputs }) }),
+  decisionTests: (projectId: string, serviceId: string) => request<DecisionTestCase[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests`),
+  createDecisionTest: (projectId: string, serviceId: string, body: unknown) => request<DecisionTestCase>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests`, { method: 'POST', body: JSON.stringify(body) }),
+  updateDecisionTest: (projectId: string, serviceId: string, testId: string, body: unknown) => request<DecisionTestCase>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  removeDecisionTest: (projectId: string, serviceId: string, testId: string, version: number) => request<void>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}?version=${version}`, { method: 'DELETE' }),
+  runDecisionTest: (projectId: string, serviceId: string, testId: string) => request<DecisionTestRun>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}/runs`, { method: 'POST' }),
+  decisionTestRuns: (projectId: string, serviceId: string, testId: string) => request<DecisionTestRun[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/tests/${testId}/runs`),
+  regressionMatrices: (projectId: string, serviceId: string) => request<MatrixRunSummary[]>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/regression-matrices`),
+  regressionMatrix: (projectId: string, serviceId: string, runId: string) => request<RegressionMatrix>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/regression-matrices/${runId}`),
+  runRegressionMatrix: (projectId: string, serviceId: string, testCaseIds: string[], clientRequestId = crypto.randomUUID()) => request<RegressionMatrix>(`/api/v1/projects/${projectId}/decision-services/${serviceId}/regression-matrices`, { method: 'POST', body: JSON.stringify({ clientRequestId, testCaseIds }) }),
   users: () => request<WorkspaceUser[]>('/api/v1/users'),
   createUser: (body: { email: string; displayName: string; tenantRole: string; temporaryPassword: string }) => request<WorkspaceUser>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
   changeUserStatus: (id: string, status: WorkspaceUser['status']) => request<WorkspaceUser>(`/api/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
