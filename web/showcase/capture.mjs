@@ -45,8 +45,10 @@ async function capture(name, selector) {
   assert.equal(await page.locator('[role="alert"]:visible').count(), 0, `${name}: unresolved error`);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false, `${name}: page overflow`);
   const filename = `${name}.png`;
-  await page.screenshot({ path: path.join(output, filename), animations: 'disabled' });
-  screenshots.push({ filename, width, height, route: new URL(page.url()).pathname });
+  const content = await page.locator('.app-shell > main').boundingBox();
+  const left = width >= 761 && !['decision-graph-lending', 'decision-table-lending'].includes(name) ? Math.max(0, Math.ceil(content.x)) : 0;
+  await page.screenshot({ path: path.join(output, filename), animations: 'disabled', clip: { x: left, y: 0, width: width - left, height } });
+  screenshots.push({ filename, width: width - left, height, route: new URL(page.url()).pathname });
 }
 try {
   await page.goto('/');

@@ -10,6 +10,8 @@ The product tour uses a synthetic retail-lending workspace created through RuleC
 
 A rule change affects more than its expression. Input contracts, dependent decisions, expected outcomes, approvals, and the artifact serving requests must stay consistent. RuleCraft keeps those concerns in one inspectable lifecycle, with PostgreSQL-backed evidence and server-enforced access control.
 
+[Architecture](#architecture) · [Technology stack](#technology-stack) · [Decision lifecycle](#decision-lifecycle) · [Product tour](#product-tour) · [Run locally](#getting-started)
+
 ## Capabilities
 
 | Work | Implemented behavior |
@@ -24,6 +26,60 @@ A rule change affects more than its expression. Input contracts, dependent decis
 | Operate | Trace-derived analytics, bounded engine benchmarks, readiness checks, recovery scans, backup/restore tooling |
 
 These features use a deliberately documented DMN/FEEL-inspired subset. RuleCraft does not claim full DMN or FEEL conformance.
+
+## Technology stack
+
+| Component | Version |
+|---|---|
+| Java / Spring Boot | 25 / 4.1.1 |
+| Maven Wrapper | Maven 3.9.11, wrapper 3.3.4 |
+| PostgreSQL | 18.6 |
+| React / TypeScript | 19.2.8 / 6.0.3 |
+| Node.js / pnpm | 24.19.0 / 10.29.2 |
+| Vite / Vitest / Playwright | 8.2.2 / 4.1.11 / 1.62.1 |
+| OpenAPI generation | springdoc 3.1.0 |
+
+Exact dependency versions live in `api/pom.xml` and `web/pnpm-lock.yaml`; container tags live in the Dockerfiles and Compose configuration.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Web[React / TypeScript web] --> API[Spring Boot API]
+    Clients[Decision API clients] --> API
+    API --> Services[Application and domain services]
+    Services --> Runtime[Typed decision runtime]
+    Services --> DB[(PostgreSQL)]
+    Runtime --> Artifact[Immutable decision artifact]
+    Artifact --> DB
+    Services --> Evidence[Versions, scenarios, approvals and audit]
+    Evidence --> DB
+```
+
+The backend is a modular monolith: domain packages share transactions without requiring a broker, cache, or separate workflow service. Browser sessions and machine API credentials use separate security filter chains. [Architecture and tradeoffs](ARCHITECTURE.md).
+
+## Decision lifecycle
+
+```mermaid
+flowchart LR
+    Author --> Validate --> Test --> Review --> Approve --> Promote --> Activate
+    Activate --> Evaluate --> Explain[Explain / audit]
+    Explain --> Observe
+    Observe --> Author
+    Activate --> Rollback[Rollback to prior artifact]
+```
+
+Authors work on mutable drafts. Review binds to an immutable captured version; promotion selects a governed baseline. Activation copies that artifact into the runtime environment. Later draft edits cannot silently change the decisions serving requests.
+
+## Decision engine
+
+- **Types:** built-in text, decimal number, boolean, date, and date-time values plus reusable object, enum, and list definitions. Inputs are validated recursively against their declared contracts.
+- **Graphs:** exact-type ports and cycle prevention define the dependency DAG. Ready decision nodes execute in a stable key order.
+- **Tables:** `ANY` and typed `EQUALS` cells feed ordered rules. `UNIQUE` requires a single match; `FIRST` selects the first matching enabled rule.
+- **Expressions:** RCEL-1 uses an owned lexer, parser, type checker, and AST evaluator. It permits arithmetic, comparison, boolean logic, conditionals, field access, and a small allowlist of pure functions.
+- **Failures:** invalid contracts, missing implementations, no-match tables, unsafe expressions, stale writes, and request conflicts produce stable problem codes. Batch items preserve their order and correlation IDs when individual evaluations fail.
+
+See [decision-engine semantics](docs/decision-engine.md) and the [RCEL-1 language reference](docs/expression-language.md).
 
 ## Product tour
 
@@ -71,46 +127,6 @@ Operations reads the authoritative schema, running matrices, active-pointer cons
 
 [Reproduce the workspace and captures locally](docs/product-tour.md). The setup is local/test tooling, uses authenticated HTTP boundaries, and adds no production population endpoint.
 
-## Architecture
-
-```mermaid
-flowchart LR
-    Web[React / TypeScript web] --> API[Spring Boot API]
-    Clients[Decision API clients] --> API
-    API --> Services[Application and domain services]
-    Services --> Runtime[Typed decision runtime]
-    Services --> DB[(PostgreSQL)]
-    Runtime --> Artifact[Immutable decision artifact]
-    Artifact --> DB
-    Services --> Evidence[Versions, scenarios, approvals and audit]
-    Evidence --> DB
-```
-
-The backend is a modular monolith: domain packages share transactions without requiring a broker, cache, or separate workflow service. Browser sessions and machine API credentials use separate security filter chains. [Architecture and tradeoffs](ARCHITECTURE.md).
-
-## Decision lifecycle
-
-```mermaid
-flowchart LR
-    Author --> Validate --> Test --> Review --> Approve --> Promote --> Activate
-    Activate --> Evaluate --> Explain[Explain / audit]
-    Explain --> Observe
-    Observe --> Author
-    Activate --> Rollback[Rollback to prior artifact]
-```
-
-Authors work on mutable drafts. Review binds to an immutable captured version; promotion selects a governed baseline. Activation copies that artifact into the runtime environment. Later draft edits cannot silently change the decisions serving requests.
-
-## Decision engine
-
-- **Types:** built-in text, decimal number, boolean, date, and date-time values plus reusable object, enum, and list definitions. Inputs are validated recursively against their declared contracts.
-- **Graphs:** exact-type ports and cycle prevention define the dependency DAG. Ready decision nodes execute in a stable key order.
-- **Tables:** `ANY` and typed `EQUALS` cells feed ordered rules. `UNIQUE` requires a single match; `FIRST` selects the first matching enabled rule.
-- **Expressions:** RCEL-1 uses an owned lexer, parser, type checker, and AST evaluator. It permits arithmetic, comparison, boolean logic, conditionals, field access, and a small allowlist of pure functions.
-- **Failures:** invalid contracts, missing implementations, no-match tables, unsafe expressions, stale writes, and request conflicts produce stable problem codes. Batch items preserve their order and correlation IDs when individual evaluations fail.
-
-See [decision-engine semantics](docs/decision-engine.md) and the [RCEL-1 language reference](docs/expression-language.md).
-
 ## Repository structure
 
 ```text
@@ -128,20 +144,6 @@ docs/
 scripts/                                  Verification and operational tooling
 .github/workflows/                         Build, integration and container gates
 ```
-
-## Technology stack
-
-| Component | Version |
-|---|---|
-| Java / Spring Boot | 25 / 4.1.1 |
-| Maven Wrapper | Maven 3.9.11, wrapper 3.3.4 |
-| PostgreSQL | 18.6 |
-| React / TypeScript | 19.2.8 / 6.0.3 |
-| Node.js / pnpm | 24.19.0 / 10.29.2 |
-| Vite / Vitest / Playwright | 8.2.2 / 4.1.11 / 1.62.1 |
-| OpenAPI generation | springdoc 3.1.0 |
-
-Exact dependency versions live in `api/pom.xml` and `web/pnpm-lock.yaml`; container tags live in the Dockerfiles and Compose configuration.
 
 ## Getting started
 
