@@ -19,6 +19,8 @@ RuleCraft provides tenant administrators with an Operations workspace at `/admin
 4. If the posture changed, refresh and inspect the new state before retrying.
 5. Confirm the resulting `READY` or `DEGRADED` status and immutable recovery-history entry.
 
+The completion banner appears after the persisted posture and history have refreshed. Recovery remains disabled during that refresh; an unavailable refresh retains the existing actionable load-error/retry path.
+
 The scan interrupts tenant matrix runs marked `RUNNING` and clears invalid active runtime pointers. Operators must coordinate with active work first: the application does not maintain distributed worker leases. It preserves decision versions, deployment attempts and history, traces, audits, scenarios, approvals, and authoring data. Reusing the same request ID with the same source posture returns the original result; changed reuse is rejected. Recovery history is bounded to 1,000 records per tenant and the UI shows the newest 25.
 
 ## Security boundary

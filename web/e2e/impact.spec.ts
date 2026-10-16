@@ -83,7 +83,7 @@ test('maps, captures, and reloads governed dependency impact', async ({ page }, 
   await page.getByLabel('Review note').fill('Assurance evidence is aligned');
   await page.getByRole('button', { name: 'Capture working decision' }).click();
   await expect(page.getByText('Version 1 captured as valid.')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Open change request' }).click();
+  await page.getByRole('button', { name: 'Approval & promotion', exact: true }).click(); await page.getByRole('button', { name: 'Open change request' }).click();
   await page.getByLabel('Request title').fill('Publish governed eligibility');
   await page.getByLabel('Change summary').fill('Promote tested dependency baseline');
   await page.getByRole('button', { name: 'Create draft' }).click();

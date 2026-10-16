@@ -25,7 +25,21 @@ describe('TableEditor', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => response(valid));
     render(<TableEditor projectId="p1" service={service} node={node} types={[]} canEdit={false} onBack={() => undefined}/>);
     expect(await screen.findByText('Read-only access. Owners and editors can change this decision table.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Rule 1 Score value')).toBeDisabled();
+    expect(screen.getByRole('table', { name: 'Policy rules in execution order' })).toBeInTheDocument();
+    expect(screen.getByText('= 700')).toBeInTheDocument();
+    expect(screen.getByText('Approve high scores')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Rule 1 Score value')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add rule' })).not.toBeInTheDocument();
+  });
+  it('switches between persisted policy review and editing without writing or losing rules', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(() => response(valid));
+    render(<TableEditor projectId="p1" service={service} node={node} types={[]} canEdit onBack={() => undefined}/>);
+    await userEvent.click(await screen.findByRole('button', { name: 'Review policy' }));
+    expect(screen.getByText('Approve high scores')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add rule' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Hit policy')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit policy' }));
+    expect(screen.getByLabelText('Rule 1 Score value')).toHaveValue('700');
+    expect(fetch.mock.calls.every(([, init]) => !init?.method)).toBe(true);
   });
 });

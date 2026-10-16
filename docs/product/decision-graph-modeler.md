@@ -1,5 +1,13 @@
 # Decision graph modeler
 
+## Viewport and typed connections
+
+The desktop canvas fits its persisted nodes to the available workbench space. Narrow canvases start at readable actual size with owned two-dimensional scrolling; **Fit to content** is an explicit overview choice. **Actual size** and zoom controls also change only the viewport, not the saved model. The canvas can receive keyboard focus. **Inspect connections** opens the validation and wiring inspector; hiding it gives the model the full workbench width.
+
+Input and result ports occupy separate sides of each decision card. Connections attach to measured port anchors, including wrapped labels, rather than fixed row estimates. Forward dependencies detour around intervening cards. Drag movement accounts for the current zoom; each card's **Actions** disclosure retains non-drag move buttons and interface/removal actions.
+
+When the workbench has insufficient width for a separate inspector, connection controls move below the canvas and reflow into one column. Their sizing follows available content width, including desktop navigation, rather than assuming a wide desktop window.
+
 The decision graph is opened from a decision service at `/projects/{projectId}/services/{serviceId}/graph`. It is a persisted, project-authorized workbench rather than a diagram-only view.
 
 ## Authoring model

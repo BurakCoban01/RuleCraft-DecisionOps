@@ -64,7 +64,7 @@ test('reports persisted runtime evidence and benchmarks the active artifact', as
   await page.getByLabel('Review note').fill('Runtime measurement contract reviewed');
   await page.getByRole('button', { name: 'Capture working decision' }).click();
   await expect(page.getByText('Version 1 captured as valid.')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Open change request' }).click();
+  await page.getByRole('button', { name: 'Approval & promotion', exact: true }).click(); await page.getByRole('button', { name: 'Open change request' }).click();
   await page.getByLabel('Request title').fill('Publish measurable decision');
   await page.getByLabel('Change summary').fill('Approve immutable runtime measurement semantics');
   await page.getByRole('button', { name: 'Create draft' }).click();

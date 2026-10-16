@@ -56,12 +56,33 @@ test('authors and persists a valid typed decision graph', async ({ page }, testI
   await expect(nodeFooter).toBeVisible();
   expect(await nodeFooter.evaluate((footer) => {
     const bounds = footer.getBoundingClientRect();
-    return [...footer.querySelectorAll('button')].every((button) => {
+    return [...footer.querySelectorAll('button,summary')].filter(button => button.checkVisibility()).every((button) => {
       const rect = button.getBoundingClientRect();
       return rect.left >= bounds.left && rect.right <= bounds.right
         && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
     });
   })).toBe(true);
+  await nodeFooter.getByText('Actions', { exact: true }).click();
+  const actions = nodeFooter.locator('.node-tools > div');
+  await expect(actions).toBeVisible();
+  await expect(actions.getByRole('button')).toHaveCount(6);
+  expect(await actions.evaluate(panel => {
+    const bounds = panel.getBoundingClientRect();
+    return [...panel.querySelectorAll('button')].every(button => {
+      const rect = button.getBoundingClientRect();
+      return rect.left >= bounds.left && rect.right <= bounds.right
+        && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+    });
+  })).toBe(true);
+  const decision = page.locator('.graph-node.decision');
+  const initialLeft = await decision.evaluate(node => Number.parseInt((node as HTMLElement).style.left));
+  await actions.getByRole('button', { name: 'Move right', exact: true }).click();
+  expect(await decision.evaluate(node => Number.parseInt((node as HTMLElement).style.left))).toBe(initialLeft + 20);
+  await actions.getByRole('button', { name: 'Move left', exact: true }).click();
+  expect(await decision.evaluate(node => Number.parseInt((node as HTMLElement).style.left))).toBe(initialLeft);
+  await nodeFooter.getByText('Actions', { exact: true }).click();
+  await page.getByRole('button', { name: 'Save graph', exact: true }).click();
+  await expect(page.getByText('Graph saved and validated.')).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: testInfo.outputPath('workspace.png'), fullPage: true });

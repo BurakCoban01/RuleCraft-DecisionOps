@@ -21,4 +21,8 @@ Loading, first-use empty, validation, stale revision, unavailable service, permi
 
 The interface uses semantic controls, visible keyboard focus, non-drag connection/reorder alternatives, text labels alongside semantic colors, system fonts, and light/dark themes. At compact widths the navigation becomes a labeled header and work surfaces retain their own scroll and action hierarchy.
 
+Workbench headers use a compact object/status/action hierarchy. Desktop navigation remains available while reading long evidence pages; nested work areas use sections rather than additional main landmarks. Graph view controls are separate from model writes. Policy review, regression evidence and governance views reduce authoring chrome without removing the underlying controls. Runtime and approval panes adapt to their own available width, including narrow desktop windows with the navigation rail present.
+
 Browser acceptance covers 1440×900 and 360×740 layouts, persisted journeys, console/network failures, and page overflow. This automated evidence and visual review do not substitute for a representative-user or real screen-reader study; see [testing](../testing.md).
+
+The synthetic retail-lending acceptance additionally checks widths 360, 600, 760, 761, 1024, 1440 and 1600, measured graph-port endpoints, fit bounds, keyboard viewport controls, and compact dark-theme policy review.
