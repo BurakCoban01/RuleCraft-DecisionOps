@@ -12,7 +12,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run --maxWorkers=1",
-    "test:e2e": "playwright test --workers=1"
+    "test:e2e": "playwright test --workers=1",
+    "showcase:test": "node --test showcase/scenario.test.mjs",
+    "showcase:populate": "node showcase/populate.mjs",
+    "showcase:check": "node showcase/acceptance.mjs",
+    "showcase:capture": "node showcase/capture.mjs"
   },
   "dependencies": {
     "react": "19.2.8",

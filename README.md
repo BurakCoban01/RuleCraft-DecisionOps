@@ -2,6 +2,10 @@
 
 RuleCraft is a versioned business-rules and decision-management platform. It combines typed decision authoring with regression scenarios, review and approval, immutable runtime activation, and explainable single or batch evaluation.
 
+![Retail lending decision graph: nine typed nodes connect eligibility, affordability, risk and exposure checks to policy and offer outputs](docs/images/decision-graph-lending.png)
+
+The product tour uses a synthetic retail-lending workspace created through RuleCraft's persisted authoring and execution workflows. Accounts, applications and traffic are fictional; the policy thresholds are illustrative, not lending guidance or production benchmark evidence.
+
 ## Why RuleCraft
 
 A rule change affects more than its expression. Input contracts, dependent decisions, expected outcomes, approvals, and the artifact serving requests must stay consistent. RuleCraft keeps those concerns in one inspectable lifecycle, with PostgreSQL-backed evidence and server-enforced access control.
@@ -20,6 +24,52 @@ A rule change affects more than its expression. Input contracts, dependent decis
 | Operate | Trace-derived analytics, bounded engine benchmarks, readiness checks, recovery scans, backup/restore tooling |
 
 These features use a deliberately documented DMN/FEEL-inspired subset. RuleCraft does not claim full DMN or FEEL conformance.
+
+## Product tour
+
+### Model typed decisions
+
+The graph above implements `LOAN_OFFER` using a nested loan-application contract, four policy assessments, an ordered decision table, and an offer-rate expression. Its nine nodes and twelve connections are persisted and executable. Exact-type ports and cycle validation protect the service boundary; fit and zoom controls keep the complete model inspectable.
+
+The same project contains separately executable eligibility, credit-risk and affordability services sharing nine reusable object and enum definitions.
+
+### Author ordered policy
+
+![Ten validated FIRST-policy rules with typed conditions, outcomes and business descriptions](docs/images/decision-table-lending.png)
+
+Ten `FIRST` rules distinguish eligibility failures, fraud and delinquency, affordability, exposure referral, borderline review and standard/prime approval. The review view exposes execution order and complete business intent without editable-control clutter. Numeric thresholds are calculated by expressions; table conditions use the implemented `ANY` / typed `EQUALS` semantics.
+
+### Calculate with bounded expressions
+
+![Affordability expression over nested typed inputs with successful boolean type inference](docs/images/expression-affordability.png)
+
+RCEL-1 evaluates declared object fields, decimal arithmetic and short-circuit boolean conditions. This assessment includes the requested instalment in monthly commitments and protects the zero-income boundary. The editor shows its expected output, inferred boolean type and validation result.
+
+### Validate boundary scenarios
+
+![Completed regression matrix with eighteen passing scenarios and persisted expected-versus-actual evidence](docs/images/regression-suite.png)
+
+Eighteen persisted cases cover score and affordability thresholds, residency, tenure, fraud, delinquency, exposure and inquiry referrals. Regression runs retain expected/actual comparisons, implementation revisions and ordered execution evidence. All three policy revisions were exercised against their corresponding expectations before capture.
+
+### Govern immutable change
+
+![Three genuine policy releases with a promoted candidate and separate author, reviewer and promoter in its immutable timeline](docs/images/version-governance.png)
+
+Three distinct versions record the initial policy, a tighter affordability limit and a revised credit floor. An editor submits each immutable candidate, a reviewer approves it, and the owner promotes it. Activation and a rollback rehearsal retain their own deployment history; changing a draft cannot change the serving artifact.
+
+### Execute and explain
+
+![Persisted runtime trace showing six ordered expression and table steps, matched-rule evidence, correlation and redacted values](docs/images/execution-trace.png)
+
+Real single, batch and sandbox evaluations generated the trace evidence. Each evaluation identifies its deployment, artifact, request and correlation, with six ordered decision steps and matched-rule metadata. Raw request inputs are not retained in traces; non-boolean values remain redacted, with fingerprints available for inspection.
+
+### Inspect operational posture
+
+![Live operational readiness, authoritative schema, abuse controls and a completed zero-repair recovery scan](docs/images/operations-posture.png)
+
+Operations reads the authoritative schema, running matrices, active-pointer consistency and process-local security controls. The completed recovery scan required no repairs and preserved governed history. Runtime analytics derives its counts and timings from actual persisted traces, not display fixtures.
+
+[Reproduce the workspace and captures locally](docs/product-tour.md). The setup is local/test tooling, uses authenticated HTTP boundaries, and adds no production population endpoint.
 
 ## Architecture
 
@@ -147,19 +197,12 @@ The verification workflow runs Maven verification, frozen frontend installation,
 
 The authenticated authoring API is rooted at `/api/v1`. Machine clients evaluate active artifacts through `/api/runtime/v1/decisions/{serviceKey}`. Local development publishes OpenAPI at `/v3/api-docs`; the production edge hides that route. See [API contracts and examples](docs/api.md).
 
-## Screenshots
-
-The examples below use synthetic decision data and test accounts.
-
-![Typed decision graph with input, decision, output, and validation panel](docs/images/decision-graph.png)
-
-![Decision table with typed rules and explicit hit policy](docs/images/decision-table.png)
-
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md)
 - [Decision engine](docs/decision-engine.md) and [expression language](docs/expression-language.md)
 - [API](docs/api.md), [testing](docs/testing.md), and [security](SECURITY.md)
+- [Synthetic product tour and reproducible captures](docs/product-tour.md)
 - [Operations](docs/operations.md), [deployment contract](docs/operations/deployment-readiness.md), and [backup/restore](docs/operations/backup-restore-runbook.md)
 - [Architecture decisions](docs/adr/) and [product workflows](docs/product/)
 

@@ -66,6 +66,8 @@ Feature journeys cover sign-in, theme/recovery, catalog/type creation, graph/tab
 
 The final portfolio checks run after the feature journeys through explicit Playwright project dependencies, so their persisted-volume/recovery assertions do not depend on filename ordering. Screenshots and failure traces go to ignored test output; generated test artifacts are not committed.
 
+The browser CI job then initializes the separate synthetic `northstar-rules` workspace, populates the [retail-lending tour](product-tour.md) twice to verify repeatability, restarts the API with bootstrap disabled, and repeats population and `pnpm showcase:check` against the retained data. This supplements the feature journeys with a richer nine-node model, role-separated governance, restart-stable identity, actual mixed decision outcomes and seven responsive widths. `pnpm showcase:test` checks the local-only target guard, deterministic retry identities and fixture boundaries without a running server.
+
 Production-edge acceptance is separate because it verifies the hardened nginx headers and hidden management/OpenAPI routes. Set `RULECRAFT_E2E_PRODUCTION=true` and run `pnpm test:e2e` against the loopback container edge; only the two deployment-readiness scenarios are selected. `RULECRAFT_E2E_BASE_URL` can override the edge URL. See [operations](operations.md) for the production-shaped smoke procedure.
 
 ## CI gates

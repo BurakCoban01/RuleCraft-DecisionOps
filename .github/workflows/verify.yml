@@ -128,6 +128,7 @@ jobs:
           RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD: CorrectHorseBattery12!
         run: |
           java -Xmx512m -jar api/target/rulecraft-api-*.jar > /tmp/rulecraft-api.log 2>&1 &
+          api_pid=$!
           cd web
           pnpm dev > /tmp/rulecraft-web.log 2>&1 &
           ready=false
@@ -140,6 +141,45 @@ jobs:
           done
           test "$ready" = true
           pnpm test:e2e
+          kill "$api_pid"
+          wait "$api_pid" || true
+          export RULECRAFT_BOOTSTRAP_WORKSPACE=northstar-rules
+          export RULECRAFT_BOOTSTRAP_TENANT_NAME='Northstar Policy Studio'
+          export RULECRAFT_BOOTSTRAP_ADMIN_EMAIL=ada@northstar.test
+          export RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD"
+          java -Xmx512m -jar ../api/target/rulecraft-api-*.jar > /tmp/rulecraft-showcase-api.log 2>&1 &
+          showcase_api_pid=$!
+          ready=false
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:50110/actuator/health/readiness > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          export RULECRAFT_SHOWCASE_EMAIL="$RULECRAFT_BOOTSTRAP_ADMIN_EMAIL"
+          export RULECRAFT_SHOWCASE_PASSWORD="$RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD"
+          pnpm showcase:test
+          pnpm showcase:populate --allow-local-writes
+          pnpm showcase:populate --allow-local-writes
+          kill "$showcase_api_pid"
+          wait "$showcase_api_pid" || true
+          export RULECRAFT_BOOTSTRAP_ENABLED=false
+          unset RULECRAFT_BOOTSTRAP_ADMIN_PASSWORD
+          java -Xmx512m -jar ../api/target/rulecraft-api-*.jar > /tmp/rulecraft-showcase-restart.log 2>&1 &
+          ready=false
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:50110/actuator/health/readiness > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          pnpm showcase:populate --allow-local-writes
+          pnpm showcase:check
 
   publication:
     runs-on: ubuntu-latest
