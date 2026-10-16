@@ -59,7 +59,24 @@ public class ExpressionLanguage {
     private static final class Parser {
         private static final int MAX_DEPTH=64;private final List<Token> tokens;private int current,depth;
         Parser(List<Token> tokens){this.tokens=tokens;}
-        Expr parse(){var result=expression();if(!check(TokenType.EOF))failure(peek(),"RC-EXPR-SYNTAX","Unexpected token after expression.");return result;}
+        Expr parse(){var result=expression();if(!check(TokenType.EOF))failure(peek(),"RC-EXPR-SYNTAX","Unexpected token after expression.");ensureTreeDepth(result);return result;}
+        private record AstDepth(Expr expression,int depth){}
+        private void ensureTreeDepth(Expr root){
+            var pending=new ArrayDeque<AstDepth>();pending.add(new AstDepth(root,1));
+            while(!pending.isEmpty()){
+                var item=pending.removeFirst();var expression=item.expression();
+                if(item.depth()>MAX_DEPTH)throw new LanguageFailure("RC-EXPR-DEPTH","Expression nesting cannot exceed 64 levels.",expression.line(),expression.column());
+                var next=item.depth()+1;
+                switch(expression){
+                    case Unary unary->pending.add(new AstDepth(unary.operand(),next));
+                    case Binary binary->{pending.add(new AstDepth(binary.left(),next));pending.add(new AstDepth(binary.right(),next));}
+                    case Conditional conditional->{pending.add(new AstDepth(conditional.condition(),next));pending.add(new AstDepth(conditional.whenTrue(),next));pending.add(new AstDepth(conditional.whenFalse(),next));}
+                    case Call call->call.arguments().forEach(argument->pending.add(new AstDepth(argument,next)));
+                    case Literal ignored->{}
+                    case Reference ignored->{}
+                }
+            }
+        }
         private Expr expression(){if(++depth>MAX_DEPTH)failure(peek(),"RC-EXPR-DEPTH","Expression nesting cannot exceed 64 levels.");try{return match(TokenType.IF)?conditional(previous()):or();}finally{depth--;}}
         private Expr conditional(Token keyword){var condition=expression();consume(TokenType.THEN,"Expected then after condition.");var whenTrue=expression();consume(TokenType.ELSE,"Expected else after the true result.");return new Conditional(condition,whenTrue,expression(),keyword.line(),keyword.column());}
         private Expr or(){var value=and();while(match(TokenType.OR)){var operator=previous();value=new Binary(value,operator,and(),operator.line(),operator.column());}return value;}
@@ -68,7 +85,7 @@ public class ExpressionLanguage {
         private Expr comparison(){var value=term();while(match(TokenType.LESS,TokenType.LESS_EQUAL,TokenType.GREATER,TokenType.GREATER_EQUAL)){var operator=previous();value=new Binary(value,operator,term(),operator.line(),operator.column());}return value;}
         private Expr term(){var value=factor();while(match(TokenType.PLUS,TokenType.MINUS)){var operator=previous();value=new Binary(value,operator,factor(),operator.line(),operator.column());}return value;}
         private Expr factor(){var value=unary();while(match(TokenType.STAR,TokenType.SLASH)){var operator=previous();value=new Binary(value,operator,unary(),operator.line(),operator.column());}return value;}
-        private Expr unary(){if(match(TokenType.NOT,TokenType.MINUS)){var operator=previous();return new Unary(operator,unary(),operator.line(),operator.column());}return primary();}
+        private Expr unary(){var operators=new ArrayList<Token>();while(match(TokenType.NOT,TokenType.MINUS)){operators.add(previous());if(operators.size()>=MAX_DEPTH)failure(previous(),"RC-EXPR-DEPTH","Expression nesting cannot exceed 64 levels.");}var value=primary();for(int index=operators.size()-1;index>=0;index--){var operator=operators.get(index);value=new Unary(operator,value,operator.line(),operator.column());}return value;}
         private Expr primary(){if(match(TokenType.TRUE))return new Literal(true,previous().line(),previous().column());if(match(TokenType.FALSE))return new Literal(false,previous().line(),previous().column());if(match(TokenType.STRING,TokenType.NUMBER))return new Literal(previous().literal(),previous().line(),previous().column());
             if(match(TokenType.IDENTIFIER)){var name=previous();if(match(TokenType.LPAREN)){var arguments=new ArrayList<Expr>();if(!check(TokenType.RPAREN))do{arguments.add(expression());}while(match(TokenType.COMMA));consume(TokenType.RPAREN,"Expected ) after function arguments.");return new Call(name.lexeme(),arguments,name.line(),name.column());}
                 var path=new ArrayList<String>();path.add(name.lexeme());while(match(TokenType.DOT))path.add(consume(TokenType.IDENTIFIER,"Expected a field name after .").lexeme());return new Reference(path,name.line(),name.column());}
