@@ -1,5 +1,7 @@
 # Regression and simulation matrix
 
+When a run is selected or completes, the scenario-selection and history region collapses so its actual results become the primary work area. Reopen **Scenario selection and run history** to change the selection or inspect another run. Per-case evidence exposes expected/actual values first; **Decision path** expands the retained ordered steps.
+
 Open **Regression** from a saved decision graph, or move from **Test cases** to **Open regression matrix**. The reload-safe route is `/projects/{projectId}/services/{serviceId}/graph/regression`.
 
 ## Build and run a matrix

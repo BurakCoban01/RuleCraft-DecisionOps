@@ -1,5 +1,7 @@
 # Decision trace explorer
 
+Trace detail keeps request correlation, artifact identity and the ordered path visible together. Non-boolean steps show their redacted type and available length/size metadata; expand **Fingerprint** for the full identity. **Artifact and payload identities** exposes full deployment, artifact and payload fingerprints. These disclosures change presentation only: raw request inputs and redacted values are not revealed or reconstructed.
+
 RuleCraft records privacy-safe evidence for evaluations made through the local runtime sandbox, the single decision API, and both API and workbench batches. Open a decision service, choose **Runtime**, and use the **Decision trace explorer** below the integration console.
 
 ## Find an evaluation

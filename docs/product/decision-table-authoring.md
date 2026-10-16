@@ -1,5 +1,9 @@
 # Decision-table authoring
 
+## Review without editing chrome
+
+**Review policy** presents persisted rules in execution order with typed values, enabled state, complete business descriptions and the current validation result. **Edit policy** returns to the same editable aggregate without making a write. Viewers open the review representation directly. Save pending changes before switching from editing into review; hit-policy changes and row creation remain in editing mode.
+
 Open a persisted graph and choose **Table** on a decision node. The deep link is `/projects/{projectId}/services/{serviceId}/graph/nodes/{nodeId}/table` and survives reload.
 
 ## Authoring model

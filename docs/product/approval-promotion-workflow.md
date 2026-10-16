@@ -1,6 +1,8 @@
 # Approval and promotion workflow
 
-Open **Versions** from the decision graph. The **Approval & promotion** workspace appears below immutable history and semantic comparison.
+Open **Versions** from the decision graph, then choose **Approval & promotion**. **Versions & diff** retains immutable history and semantic comparison in its own view. The selected approval view survives reload through the `#approval` URL fragment; both views read the same saved versions and workflow.
+
+Semantic identity is independent of JSON object member order across API restarts. Unchanged legacy snapshots keep their original fingerprints; existing review, deployment and trace evidence is not rewritten. See the [identity compatibility decision](../adr/0019-stable-decision-content-identity.md).
 
 ## Open and submit a review package
 
