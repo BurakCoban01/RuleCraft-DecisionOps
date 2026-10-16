@@ -19,4 +19,4 @@ Any user who can view the project may run its sandbox; evaluation does not grant
 
 Invalid graphs, invalid implementations, missing implementations, input contract or size-limit failures, no-match/unique violations, missing expression fields, and division by zero return stable actionable problem codes. The sandbox is read-only with respect to authored decision state and does not deploy or promote a service.
 
-decision execution evaluations are synchronous and ephemeral apart from their metadata audit event. Saved scenarios, regression matrices, durable explain traces, runtime environments, public decision APIs, batch jobs, replay, and deployment arrive in subsequent extensions.
+Working-copy evaluations are synchronous and ephemeral apart from their metadata audit event. Use scenarios and regression matrices for saved assurance, and the Runtime workspace for immutable-artifact activation, single/batch APIs, and durable redacted traces. The working-copy sandbox does not claim historical replay or background scheduling.

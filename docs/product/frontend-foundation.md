@@ -1,28 +1,24 @@
-# Frontend foundation contract
+# Workbench interface
 
-## Product and audience
+RuleCraft is a decision-authoring workbench for authors, reviewers, operators, and administrators. Its navigation follows persisted business objects and the decision lifecycle.
 
-RuleCraft is an enterprise decision-authoring workbench for rule authors, reviewers, operators, auditors and administrators. platform foundation establishes the shell and system-state experience without inventing decision data or exposing future controls.
+## Navigation and roles
 
-## Art direction
+Projects establish the working scope. A service opens its typed contract and graph; tables, expressions, evaluation, test cases, regression, versions, runtime, impact, and analytics stay attached to that service. Workspace administration and Operations are visible only to administrators. Client visibility supplements server authorization and never grants permission by itself.
 
-- Thesis: precise decision work in a calm, inspectable workspace.
-- Emotional target: assured, focused, traceable.
-- Tension: dense but calm; authoritative but approachable.
-- Composition: persistent context rail, strong page anchor, task-led working region, restrained secondary metadata.
-- Typography: system sans for operational legibility and tabular numerals for identifiers/status data; no remote font dependency.
-- Palette: warm paper canvas, deep ink navigation, teal action/selection, semantic amber/red/green states with redundant labels.
-- Material: fine borders, limited elevation, compact radii; no glass, neon, generic KPI mosaics or nested cards.
-- Signature: a thin decision-path rule that visually connects context, state and next action without implying fabricated workflow progress.
-- Motion: immediate feedback and short state transitions; reduced-motion removes nonessential transitions.
-- Responsive behavior: rail becomes a labeled compact header; secondary context follows the main task; no essential action is hidden.
+## Working surfaces
 
-## Page-family contract
+- Graphs keep typed input, decision, and output nodes visible with validation and connection controls.
+- Tables expose ordered rules, typed JSON values, enabled state, and explicit hit-policy badges.
+- Expressions pair source with typed context and line/column diagnostics.
+- Scenario and regression workbenches separate expectations, execution failures, and immutable results.
+- Version review, promotion, and runtime history distinguish mutable drafts from governed and activated artifacts.
+- Traces, dependency impact, analytics, and Operations expose evidence from persisted records with role-appropriate filters, actions, history, and exports.
 
-platform foundation provides the application shell and a system-ready surface. The dominant job is to confirm that the private workspace can reach its authoritative service boundary. Loading, ready, degraded, offline and permission states use the same composition and preserve a clear retry or recovery path.
+## States and input
 
-Future page families inherit semantic tokens and shell primitives but must add domain-specific contracts in their owning phases.
+Loading, first-use empty, validation, stale revision, unavailable service, permission, archived/read-only, and success states share the product vocabulary and preserve an actionable next step. Browser history and direct object routes preserve context across reloads.
 
-## Accessibility and themes
+The interface uses semantic controls, visible keyboard focus, non-drag connection/reorder alternatives, text labels alongside semantic colors, system fonts, and light/dark themes. At compact widths the navigation becomes a labeled header and work surfaces retain their own scroll and action hierarchy.
 
-Target WCAG 2.2 AA. Keyboard focus is always visible, landmarks are semantic, status changes are announced concisely, controls meet target-size guidance, and light/dark/high-contrast mappings preserve meaning without color-only status.
+Browser acceptance covers 1440×900 and 360×740 layouts, persisted journeys, console/network failures, and page overflow. This automated evidence and visual review do not substitute for a representative-user or real screen-reader study; see [testing](../testing.md).

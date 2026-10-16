@@ -6,7 +6,7 @@ Accepted — 2026-08-29
 
 ## Context
 
-The working service, type, graph, implementation, and scenario aggregates are independently versioned and mutable. Reviewers need a durable change point that cannot become detached from what an author actually saw, and they need a semantic comparison rather than a noisy relational or canvas-layout diff. approval and promotion approval and promotion must later refer to stable evidence, but version review must not invent approval state.
+The working service, type, graph, implementation, and scenario aggregates are independently versioned and mutable. Reviewers need a durable change point that cannot become detached from what an author actually saw, and they need a semantic comparison rather than a noisy relational or canvas-layout diff. Approval and promotion require stable evidence separate from mutable authoring state.
 
 ## Decision
 

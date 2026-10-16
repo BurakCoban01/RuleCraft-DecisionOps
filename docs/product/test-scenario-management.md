@@ -26,4 +26,4 @@ The scenario grid shows the latest result and supports name/key search, individu
 
 ## Boundaries
 
-Individual scenario actions still run one case at a time. regression matrices adds bounded, idempotent bulk selection and durable regression/simulation evidence in the separate matrix workbench. Scheduled suites, tags, historical-model replay, baseline pinning, version diff, promotion gates, deployment selection, and public decision APIs remain later-phase concerns.
+Individual scenario actions run one case at a time. The regression workbench adds bounded, idempotent bulk selection and durable matrix evidence. These runs evaluate the current saved model; scheduled suites, tags, and historical-model replay are not implemented. Version review, promotion, activation, and machine evaluation have separate governed workspaces and contracts.

@@ -23,4 +23,4 @@ The current governed baseline banner identifies the promoted immutable version a
 - `REVIEWER` — inspect and decide reviews;
 - `VIEWER` — inspect only.
 
-Cross-project and cross-tenant identifiers are not disclosed. approval and promotion does not provide runtime deployment, environment activation, rollback, or historical execution; those begin in runtime sandbox and subsequent extensions.
+Cross-project and cross-tenant identifiers are not disclosed. Promotion selects the governed baseline; activation, retirement, rollback, and captured execution belong to the [runtime sandbox](runtime-deployment-sandbox.md). Owners and administrators may hold several workflow permissions; a distinct second human is not required by the implementation.
