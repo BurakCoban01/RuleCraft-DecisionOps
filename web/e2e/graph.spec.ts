@@ -52,6 +52,16 @@ test('authors and persists a valid typed decision graph', async ({ page }, testI
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Eligibility graph' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Graph is structurally ready')).toBeVisible();
+  const nodeFooter = page.locator('.graph-node.decision > footer');
+  await expect(nodeFooter).toBeVisible();
+  expect(await nodeFooter.evaluate((footer) => {
+    const bounds = footer.getBoundingClientRect();
+    return [...footer.querySelectorAll('button')].every((button) => {
+      const rect = button.getBoundingClientRect();
+      return rect.left >= bounds.left && rect.right <= bounds.right
+        && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+    });
+  })).toBe(true);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: testInfo.outputPath('workspace.png'), fullPage: true });
